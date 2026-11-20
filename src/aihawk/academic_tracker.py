@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
-from typing import Self
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Self
 
 from aihawk.academic_approval import ApplicationPreview
 from aihawk.academic_browser import verified_portal_host
