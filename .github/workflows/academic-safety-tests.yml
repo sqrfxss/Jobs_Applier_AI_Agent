@@ -35,16 +35,18 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python: ['3.11', '3.12']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - name: Install standalone test requirements
         run: python -m pip install --disable-pip-version-check pytest
       - name: Compile academic extension
         run: python -m compileall -q src/aihawk
-      - name: Run security and academic tests
-        env:
-          PYTHONPATH: src
+      - name: Stage isolated tests (avoid unrelated upstream conftest dependencies)
         run: |
-          python -m pytest -q tests/test_academic.py tests/test_academic_cli.py tests/test_academic_workflow.py tests/test_academic_review.py tests/test_academic_portal.py tests/test_academic_ops.py tests/test_official_fetch.py tests/test_orbitapply_bridge.py
+          python -c "import os, pathlib, shutil; files=('test_academic.py','test_academic_cli.py','test_academic_workflow.py','test_academic_review.py','test_academic_portal.py','test_academic_ops.py','test_official_fetch.py','test_orbitapply_bridge.py'); dest=pathlib.Path(os.environ['RUNNER_TEMP'])/'aihawk_academic_tests'; dest.mkdir(exist_ok=True); [shutil.copy2(pathlib.Path('tests')/name,dest/name) for name in files]"
+      - name: Run standalone security and academic tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python -m pytest -q "${{ runner.temp }}/aihawk_academic_tests"
