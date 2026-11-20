@@ -14,11 +14,11 @@ import socket
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 from io import BytesIO
-from typing import Callable
 
 from aihawk.academic_sources import _host
 
@@ -172,6 +172,6 @@ def fetch_official_page(
             content = parser.text()
     return PageSnapshot(
         requested_url=url, final_url=final_url,
-        retrieved_at=datetime.now(timezone.utc), sha256=digest,
+        retrieved_at=datetime.now(UTC), sha256=digest,
         content_type=mime, text=re.sub(r"\s+", " ", content).strip(),
     )
