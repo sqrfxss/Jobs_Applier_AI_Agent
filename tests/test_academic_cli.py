@@ -1,5 +1,5 @@
 import json
-from datetime import date, datetime, timezone
+from datetime import date
 
 from aihawk.academic_cli import evaluate_document, main
 
