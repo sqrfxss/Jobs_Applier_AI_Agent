@@ -13,7 +13,6 @@ from aihawk.academic_programs import (
     assess_conditions,
 )
 
-
 TODAY = date(2026, 11, 20)
 
 
