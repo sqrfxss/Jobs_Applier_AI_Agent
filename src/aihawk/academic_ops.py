@@ -92,12 +92,47 @@ def main(argv: list[str] | None = None) -> int:
     handoff.add_argument("manifest", type=Path)
     autofill = subs.add_parser("autofill", help="Prepare explicitly mapped controls in a visible browser; user submits manually.")
     autofill.add_argument("manifest", type=Path)
+    for name in ("track-prepared", "track-submitted", "track-status"):
+        track = subs.add_parser(name, help="Record or inspect local redacted application status.")
+        track.add_argument("manifest", type=Path)
+        track.add_argument("--db", type=Path, help="Private local SQLite file; defaults beside manifest.")
+        if name == "track-submitted":
+            track.add_argument("--proof", type=Path, help="Local confirmation evidence file (optional).")
     args = parser.parse_args(argv)
 
     if args.action == "autofill":
         from aihawk.academic_browser import run_interactive
 
         return run_interactive(args.manifest)
+
+    if args.action.startswith("track-"):
+        import sys
+        from datetime import UTC, datetime
+
+        from aihawk.academic_tracker import LocalApplicationRegistry, application_reference
+
+        data = _payload(args.manifest)
+        preview, title, hosts, _ = application_from_manifest(data, manifest_dir=args.manifest.parent)
+        reference = application_reference(preview, title)
+        database = args.db or args.manifest.parent / "academic-private.sqlite"
+        with LocalApplicationRegistry(database) as registry:
+            if args.action == "track-prepared":
+                status = registry.record_prepared(preview, title=title, hosts=hosts, now=datetime.now(UTC))
+            elif args.action == "track-status":
+                status = registry.state_for(reference)
+            else:
+                if not sys.stdin.isatty():
+                    raise PermissionError("Reporting a submission requires an interactive human terminal.")
+                challenge = "SUBMITTED " + preview.fingerprint()[-12:]
+                if input(f"Only after manual submission, type {challenge}: ") != challenge:
+                    print("No submission recorded.")
+                    return 1
+                status = registry.record_manual_submission(
+                    preview, title=title, now=datetime.now(UTC), human_attested=True,
+                    proof_path=args.proof, private_root=args.manifest.parent,
+                )
+        print(f"Local status: {status.state if status else 'not_recorded'}. No university contacted.")
+        return 0
 
     if args.action == "capture":
         record = evidence_capture(args.url, official_hosts=tuple(args.host), exact_phrase=args.phrase, requirement=args.requirement)
