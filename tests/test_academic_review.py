@@ -2,7 +2,6 @@ import json
 from datetime import UTC, datetime
 
 import pytest
-
 from aihawk.academic_approval import ApplicationPreview
 from aihawk.academic_review import AcademicReview, WorkflowState, export_review
 
