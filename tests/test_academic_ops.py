@@ -3,7 +3,6 @@ import json
 from datetime import UTC, datetime
 
 import pytest
-
 from aihawk.academic_ops import application_from_manifest, evidence_capture, main
 from aihawk.official_fetch import PageSnapshot
 
