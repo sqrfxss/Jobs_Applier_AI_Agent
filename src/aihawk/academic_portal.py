@@ -21,6 +21,8 @@ def render_preview(
     title: str,
     official_hosts: tuple[str, ...],
     sources: tuple[str, ...] = (),
+    binding_summary: tuple[tuple[str, str, str], ...] = (),
+    binding_fingerprint: str | None = None,
 ) -> str:
     """Render an escaped, standalone, non-submitting HTML review document."""
     host = _host(preview.opportunity_url)
@@ -41,6 +43,16 @@ def render_preview(
     attachments = "\n".join(
         f"<li>{html.escape(item)}</li>" for item in preview.attachment_hashes
     ) or "<li>None</li>"
+    mapping_rows = "".join(
+        "<tr><td>" + html.escape(field) + "</td><td>" + html.escape(selector) + "</td><td>" + html.escape(kind) + "</td></tr>"
+        for field, selector, kind in binding_summary
+    )
+    mapping_html = (
+        "<h2>Exact browser field mapping (review before preparation)</h2><table><thead>"
+        "<tr><th>Reviewed field</th><th>CSS selector</th><th>Action</th></tr></thead>"
+        f"<tbody>{mapping_rows}</tbody></table>"
+        f"<p>Preparation fingerprint: <code>{html.escape(binding_fingerprint or '')}</code></p>"
+    ) if binding_summary else ""
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -61,6 +73,7 @@ before opening the university portal. This file cannot submit an application.</p
 <a href="{link}" rel="noopener noreferrer" target="_blank">{link}</a></p>
 <p><strong>SHA-256 application fingerprint:</strong> <code>{preview.fingerprint()}</code></p>
 <h2>Form values</h2><table><tbody>{rows}</tbody></table>
+{mapping_html}
 <h2>Attachment hashes</h2><ul>{attachments}</ul>
 <h2>Source records (review independently)</h2><ul>{cites}</ul>
 <p>Any change in the form values or attachment digests requires a new review.</p>
