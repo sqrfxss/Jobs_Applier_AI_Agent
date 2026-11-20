@@ -41,7 +41,11 @@ def application_from_manifest(data: dict, *, manifest_dir: Path) -> tuple[Applic
     files = data.get("attachments", [])
     if not isinstance(files, list) or not all(isinstance(f, str) for f in files):
         raise ValueError("Attachments must be a list of paths.")
-    hashes = tuple(_hash_file((manifest_dir / name).resolve()) for name in files)
+    root = manifest_dir.resolve()
+    paths = tuple((root / name).resolve() for name in files)
+    if any(not path.is_relative_to(root) for path in paths):
+        raise ValueError("Attachment paths must remain inside the private manifest directory.")
+    hashes = tuple(_hash_file(path) for path in paths)
     preview = ApplicationPreview(
         opportunity_url=data["official_application_url"],
         applicant_id=data["applicant_id"],
