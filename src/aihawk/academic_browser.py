@@ -124,14 +124,21 @@ def prepare_fields(page: Any, plan: FormPlan) -> tuple[str, ...]:
                 if not (tag == "textarea" or (tag == "input" and control_type in TEXT_INPUT_TYPES)):
                     raise PortalPreparationError(f"Unsafe control type for: {binding.field}")
                 node.fill(fields[binding.field], timeout=5000)
+                if node.input_value(timeout=5000) != fields[binding.field]:
+                    raise PortalPreparationError(f"Browser readback did not match: {binding.field}")
             elif binding.kind == "select":
                 if tag != "select":
                     raise PortalPreparationError(f"Expected an HTML select: {binding.field}")
                 node.select_option(value=fields[binding.field], timeout=5000)
+                if node.input_value(timeout=5000) != fields[binding.field]:
+                    raise PortalPreparationError(f"Browser selection did not match: {binding.field}")
             else:
                 if tag != "input" or control_type != "file":
                     raise PortalPreparationError(f"Expected a file input: {binding.field}")
                 node.set_input_files(str(plan.file_for(binding.field)), timeout=5000)
+                names = node.evaluate("(element) => Array.from(element.files ?? []).map(file => file.name)")
+                if names != [plan.file_for(binding.field).name]:
+                    raise PortalPreparationError(f"File upload readback did not match: {binding.field}")
             completed.append(binding.field)
             verified_portal_host(page.url, plan.hosts)
         except PortalPreparationError:
