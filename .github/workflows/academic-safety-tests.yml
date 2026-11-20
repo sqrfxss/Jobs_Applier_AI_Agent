@@ -49,3 +49,23 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/src
         run: python -m pytest -q "${{ runner.temp }}/aihawk_academic_tests"
+
+  academic-browser-integration:
+    name: Synthetic academic form / Chromium
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install browser test dependencies
+        run: python -m pip install --disable-pip-version-check pytest playwright
+      - name: Install Chromium with supported system libraries
+        run: python -m playwright install --with-deps chromium
+      - name: Stage isolated browser test
+        run: |
+          python -c "import os, pathlib, shutil; dest=pathlib.Path(os.environ['RUNNER_TEMP'])/'aihawk_academic_browser'; dest.mkdir(exist_ok=True); shutil.copy2('tests/test_academic_browser_live.py',dest/'test_academic_browser_live.py')"
+      - name: Exercise real Chromium against intercepted synthetic form
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python -m pytest -q "${{ runner.temp }}/aihawk_academic_browser" -m browser
