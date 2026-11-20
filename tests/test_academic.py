@@ -2,7 +2,6 @@ from datetime import date
 
 from aihawk.academic import AcademicOpportunity, ApplicantEvidence, Verdict, assess
 
-
 TODAY = date(2026, 11, 20)
 
 
