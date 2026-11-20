@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+
 from aihawk.academic import Verdict
 from aihawk.academic_programs import (
     CandidateConditions,
