@@ -8,8 +8,8 @@ future portal adapter must implement the verified approval boundary itself.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -37,7 +37,7 @@ class AcademicReview:
             raise ValueError("Timestamp must be timezone-aware.")
         # No form contents or applicant secrets in audit events.
         self.history.append({
-            "time": now.astimezone(timezone.utc).isoformat(),
+            "time": now.astimezone(UTC).isoformat(),
             "action": action,
             "fingerprint": self.application.fingerprint(),
         })
