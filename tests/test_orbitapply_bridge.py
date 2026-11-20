@@ -2,7 +2,6 @@ import json
 from datetime import date
 
 import pytest
-
 from aihawk.academic import Assessment, Verdict
 from aihawk.orbitapply_bridge import OpportunityExchange, serialize_exchange, validate_exchange
 
