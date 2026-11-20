@@ -142,12 +142,13 @@ class PreparationNetworkGuard:
         self.blocked_requests = 0
 
     def should_block(self, request: Any) -> bool:
-        if request.method.upper() not in ("GET", "HEAD"):
-            return True
-        if request.is_navigation_request():
-            return True
-        # Restrict allowed resource fetch protocols (no file:, data:, websocket:).
-        return not request.url.startswith("https://")
+        # The page was loaded and any interactive login completed BEFORE this
+        # guard is installed. During deterministic field preparation, NO network
+        # traffic is necessary. Denying GET as well as POST prevents common
+        # on-change uploads, analytics and GET-form submissions. This does not
+        # retroactively close pre-existing WebSockets, so do not treat it as a
+        # sandbox for hostile sites.
+        return True
 
     def __call__(self, route: Any) -> None:
         if self.should_block(route.request):
