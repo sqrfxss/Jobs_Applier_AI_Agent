@@ -1,5 +1,5 @@
-from datetime import date
 import json
+from datetime import date
 
 import pytest
 
@@ -36,12 +36,12 @@ def test_invalid_level_rejected():
 def test_fake_submitted_status_rejected():
     record = sample().to_record()
     record["application_status"] = "submitted"
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         validate_exchange(record)
 
 
 def test_invalid_source_field_rejected():
     record = sample().to_record()
     record["source_urls"] = None
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         validate_exchange(record)
