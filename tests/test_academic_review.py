@@ -1,13 +1,12 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from aihawk.academic_approval import ApplicationPreview
 from aihawk.academic_review import AcademicReview, WorkflowState, export_review
 
-
-NOW = datetime(2026, 11, 20, tzinfo=timezone.utc)
+NOW = datetime(2026, 11, 20, tzinfo=UTC)
 
 
 def sample():
