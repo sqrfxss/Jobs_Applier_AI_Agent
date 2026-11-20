@@ -29,7 +29,9 @@ def _payload():
 
 def test_sourced_eligible_evaluation():
     result = evaluate_document(_payload(), today=date(2026, 11, 20))
-    assert result["results"][0]["verdict"] == "eligible"
+    assert result["results"][0]["verdict"] == "needs_review"
+    assert result["results"][0]["preliminary_verdict"] == "eligible"
+    assert result["results"][0]["source_content_verified"] is False
     assert result["submission_enabled"] is False
 
 
