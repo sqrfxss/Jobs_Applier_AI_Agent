@@ -1,8 +1,8 @@
 # Academic application workflow — standalone user guide
 
-**This extension does not connect to OrbitApply.** It is a standalone, local
-research and application-preparation flow. It **never submits** a university
-application and never signs in to a university portal. The upstream AIHawk
+This is a standalone, local
+research and application-preparation flow. It does not submit university
+applications or sign in automatically to a university portal. The upstream AIHawk
 job-application browser is a separate system with its own security risks.
 
 ## 1. Prepare a private manifest
@@ -22,7 +22,12 @@ Create a file named `application.json` in a protected local directory
     "email": "replace@example.com"
   },
   "attachments": ["cv.pdf"],
-  "source_urls": ["https://example.edu/admissions"]
+  "source_urls": ["https://example.edu/admissions"],
+  "portal_bindings": [
+    {"field": "full_name", "selector": "input[name='fullName']", "kind": "text"},
+    {"field": "email", "selector": "input[name='email']", "kind": "text"},
+    {"field": "cv.pdf", "selector": "input[type='file']", "kind": "upload"}
+  ]
 }
 ```
 
@@ -76,7 +81,46 @@ fingerprint challenge. It opens the allowlisted institutional URL in a browser.
 The operator must complete and submit the university application manually.
 No automatic browser-fill or submission permission is granted.
 
-## 5. Eligibility assessment
+## 5. Optional controlled form preparation (manual submit)
+
+The original academic flow remains fully usable without a browser library.
+To **prepare typed fields** in a visible local browser, install the optional
+Playwright dependency and Chromium browser:
+
+```powershell
+py -m pip install -e ".[academic-browser]"
+py -m playwright install chromium
+```
+
+Use:
+
+```powershell
+aihawk-academic preview .\\application.json .\\application-review.html
+aihawk-academic autofill .\\application.json
+```
+
+The `portal_bindings` above are **synthetic examples**, not selectors verified
+on a real university website. Inspect the institution's actual form and fill
+the mapping only with validated input/select/upload selectors. Every field
+must reference an existing reviewed value or a locally approved attachment.
+Text and select inputs and files may be prepared; submit buttons and consent
+checkboxes are deliberately excluded.
+
+The operator reviews the preview and types a fingerprint challenge, manually
+logs in (if needed), and stays at the university form. During the automated
+field-preparation phase, all Playwright-routed HTTP requests are aborted to
+reduce the risk of background transmission; the browser may behave differently
+on forms that expect network validation. The operator types a second challenge
+to regain manual browser control and must click final Submit directly.
+No AI agent chooses or clicks submission controls.
+
+**Browser limitation:** a website can cause side effects through previously
+opened WebSocket connections or other browser behaviour that request routing
+does not intercept. This implementation is not an isolation sandbox for
+malicious pages and is not a guarantee that every real university site can be
+automated. Only operate on verified, trusted university application pages.
+
+## 6. Eligibility assessment
 
 `python -m aihawk.academic_cli evaluate input.json result.json` evaluates
 explicitly supplied programme facts without performing network access.
@@ -90,7 +134,7 @@ deposits, tuition and spouse-related visa checks. Fees that are not provided
 are unknown, never automatically zero. Immigration decisions are not inferred
 from academic admission rules.
 
-## 6. Development and verification
+## 7. Development and verification
 
 The academic extension includes isolated pytest tests for:
 - Conservative eligibility and test-format matching
@@ -99,6 +143,7 @@ The academic extension includes isolated pytest tests for:
 - Static HTML preview and interactive manual opening
 - JSON CLI and application attachment hashing
 - Fee, tuition, deposit, documentation timing and family-visa flags
+- Explicit field mapping, no-submit browser preparation, and a separate synthetic Chromium integration test
 
 Run in the configured `develop` checkout with Python 3.11 or 3.12 and
 the project's developer dependencies. GitHub Actions has a standalone test
