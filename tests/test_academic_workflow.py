@@ -1,12 +1,11 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from aihawk.academic_approval import ApplicationPreview, ApprovalGate
 from aihawk.academic_sources import RequirementSource, validate_source
 
-
-NOW = datetime(2026, 11, 20, tzinfo=timezone.utc)
+NOW = datetime(2026, 11, 20, tzinfo=UTC)
 
 
 def test_official_subdomain_accepted():
