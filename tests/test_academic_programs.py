@@ -5,7 +5,12 @@ import pytest
 
 from aihawk.academic import Verdict
 from aihawk.academic_programs import (
-    CandidateConditions, DocumentTiming, LanguageRule, Money, ProgrammeConditions, assess_conditions,
+    CandidateConditions,
+    DocumentTiming,
+    LanguageRule,
+    Money,
+    ProgrammeConditions,
+    assess_conditions,
 )
 
 
@@ -19,9 +24,9 @@ def base():
         accepted_languages=(LanguageRule("TOEFL iBT Home Edition", 90),),
         legalization=DocumentTiming.ENROLMENT,
         certified_translation=DocumentTiming.NOT_REQUIRED,
-        application_fee=Money(Decimal("0"), "EUR"),
-        seat_deposit=Money(Decimal("0"), "EUR"),
-        tuition_per_year=Money(Decimal("14000"), "EUR"),
+        application_fee=Money(Decimal(0), "EUR"),
+        seat_deposit=Money(Decimal(0), "EUR"),
+        tuition_per_year=Money(Decimal(14000), "EUR"),
         spouse_visa_policy_verified=True,
     )
 
