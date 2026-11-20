@@ -90,7 +90,14 @@ def main(argv: list[str] | None = None) -> int:
     preview.add_argument("output", type=Path)
     handoff = subs.add_parser("handoff", help="Open the official portal after typing a human challenge.")
     handoff.add_argument("manifest", type=Path)
+    autofill = subs.add_parser("autofill", help="Prepare explicitly mapped controls in a visible browser; user submits manually.")
+    autofill.add_argument("manifest", type=Path)
     args = parser.parse_args(argv)
+
+    if args.action == "autofill":
+        from aihawk.academic_browser import run_interactive
+
+        return run_interactive(args.manifest)
 
     if args.action == "capture":
         record = evidence_capture(args.url, official_hosts=tuple(args.host), exact_phrase=args.phrase, requirement=args.requirement)
@@ -113,5 +120,9 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-if __name__ == "__main__":
+def run() -> None:
     raise SystemExit(main())
+
+
+if __name__ == "__main__":
+    run()
