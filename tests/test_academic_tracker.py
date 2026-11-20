@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
+
 from aihawk.academic_approval import ApplicationPreview
 from aihawk.academic_tracker import (
     DuplicateApplicationError,
