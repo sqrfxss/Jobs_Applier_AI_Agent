@@ -75,3 +75,12 @@ Written by the AIHawk team:
   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=feder-cr/Jobs_Applier_AI_Agent&type=Date&theme=dark">
   <img alt="Star history of AIHawk" src="https://api.star-history.com/svg?repos=feder-cr/Jobs_Applier_AI_Agent&type=Date" width="100%">
 </picture>
+
+
+---
+
+## Academic applications (experimental fork extension)
+
+This fork includes a **standalone, non-submitting** workflow for researching university requirements and preparing reviewed application details. It can capture exact quotes from allowlisted official public pages, evaluate explicit admissions conditions, produce a local application preview, and open the official portal for **manual** completion.
+
+Start with [the academic quickstart](docs/academic-quickstart.md) and [the implementation/status notes](docs/academic-extension.md). This is **not** an automated university submission feature; its review and approval code is not connected to AIHawk's original application browser. Keep private documents outside Git and do not turn on unattended academic submissions.
