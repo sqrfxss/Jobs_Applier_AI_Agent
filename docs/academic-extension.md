@@ -1,84 +1,76 @@
-# Academic applications extension — development branch
+# Academic extension status — independent of OrbitApply
 
-## Verified implementation status (2026-11-20)
+Updated 2026-11-20. This branch implements a standalone **evidence-capture,
+preliminary-eligibility and human-review workflow**, not a production
+automatic submission bot. No connection, deployment or database write to
+OrbitApply has been made.
 
-This extension is a **working, tested offline academic eligibility and review foundation**, not a completed university portal autopilot. It does not send applications and does not alter AIHawk's existing job-submission code.
+## What is implemented
 
-### Modules
-
-| Module | Function | Verification |
+| Component | Location | Result |
 | --- | --- | --- |
-| `aihawk.academic` | Deterministic eligibility for deadline, accepted exam, score and legalization | Automated unit tests |
-| `aihawk.academic_sources` | Evidence metadata with HTTPS allowlist, timestamps and text | Automated unit tests; no live source verification |
-| `aihawk.academic_approval` | One-use fingerprint-bound approval record | Automated unit tests |
-| `aihawk.academic_review` | Draft/review/approval/manual-submission state machine and redacted audit | Automated unit tests |
-| `aihawk.academic_cli` | JSON input -> JSON eligibility report; never submits | Automated unit tests |
-| `aihawk.orbitapply_bridge` | Versioned, offline academic assessment exchange records | Automated unit tests |
+| Preliminary programme checks | `academic.py`, `academic_cli.py` | Deadline, test type, score and legalization |
+| Detailed admissions checks | `academic_programs.py`, `academic_program_cli.py` | Exact TOEFL format, translations, document timing, fees, deposits, tuition and family-visa review flags |
+| Source metadata checks | `academic_sources.py` | HTTPS hostname allowlist, timestamps and quote metadata |
+| Official public page capture | `official_fetch.py`, `academic_ops.py capture` | Bounded public HTML, text and PDF; exact phrase excerpt, timestamp and SHA-256 |
+| Application preview | `academic_portal.py`, `academic_ops.py preview` | Static HTML with escaped values and no form submit |
+| Manual browser handoff | `academic_ops.py handoff` | Explicit terminal fingerprint challenge, official host allowlist |
+| Review & approvals | `academic_approval.py`, `academic_review.py` | One-use fingerprint-bound approval, edit invalidation and redacted audit |
+| Experimental data exchange | `orbitapply_bridge.py` | A dormant offline schema only; not integrated or invoked |
 
-### Locally verified checks
+Unknown costs, missing language/translation or legalization requirements and
+unconfirmed immigration rules are **not** assumed to be favourable. Source
+metadata alone cannot establish the truth of admission conditions; `academic_cli`
+never returns final confirmed eligibility from self-reported quotes.
 
-On a connected Windows host, 26 tests across:
-- `tests/test_academic.py`
-- `tests/test_academic_workflow.py`
-- `tests/test_academic_cli.py`
-- `tests/test_academic_review.py`
-- `tests/test_orbitapply_bridge.py`
+## Verified tests
 
-completed successfully with `26 passed` using `py -m pytest`. This was a **module-level** test run from downloaded GitHub files, not the complete original repository test suite. The fork currently has no GitHub Actions runs, so CI remains unverified.
+**59 targeted Python tests passed**, with `ruff check` reporting **all checks
+passed** on the connected Windows system, in the isolated test directory
+`F:\AIHawk_test`. The tested Python there is 3.14; the separate GitHub workflow
+runs supported Python 3.11 and 3.12 on Linux and Windows and has reported
+successful executions.
 
-### Run offline evaluation
+One live public-source test captured the homepage of
+`https://www.maastrichtuniversity.nl/` with an exact phrase and a document
+hash. It did **not** verify any specific admissions requirement.
 
-1. Install Python 3.11 or 3.12 and the original project's developer dependencies, or provide the `src` directory on `PYTHONPATH`.
-2. Prepare a UTF-8 JSON document with this structure:
+The original AIHawk test suite includes expensive browser/integration tests.
+Its full CI green status on the final branch has not yet been confirmed;
+independent academic test success is not proof that all upstream tests pass.
 
-```json
-{
-  "applicant": {
-    "language_test": "TOEFL Home Edition",
-    "language_score": 95,
-    "documents_legalized": false
-  },
-  "opportunities": [
-    {
-      "institution": "Example University (illustrative only)",
-      "program": "MSc Example",
-      "official_hosts": ["example.edu"],
-      "requirements": {
-        "deadline": "2027-02-01",
-        "accepted_language_tests": ["TOEFL Home Edition"],
-        "minimum_language_score": 90,
-        "requires_legalization_at_application": false
-      },
-      "sources": []
-    }
-  ]
-}
-```
+## How to run
 
-The illustrative entry **does not constitute a verified real programme**. Because `sources` is empty, the result is `needs_review`.
+See [academic-quickstart.md](academic-quickstart.md) for the local JSON manifest
+and commands. From a Python environment containing this branch:
 
 ```powershell
-$env:PYTHONPATH = (Resolve-Path .\src).Path
-py -m aihawk.academic_cli evaluate .\academic-input.json .\academic-output.json --date 2026-11-20
-py -m pytest -q tests/test_academic.py tests/test_academic_workflow.py tests/test_academic_cli.py tests/test_academic_review.py tests/test_orbitapply_bridge.py
+py -m aihawk.academic_ops capture --url "https://www.maastrichtuniversity.nl/" --host "maastrichtuniversity.nl" --phrase Maastricht --requirement institution_homepage --out .\homepage-evidence.json
+py -m aihawk.academic_ops preview .\application.json .\application-review.html
+py -m aihawk.academic_ops handoff .\application.json
+py -m aihawk.academic_program_cli .\programme.json .\programme-review.json --date 2026-11-20
 ```
 
-### Safety restrictions
+The homepage example is only a fetch test. Do not enter real applicant
+information into a public GitHub checkout. Keep `application.json`,
+attachments and review HTML in a private, Git-ignored folder.
 
-- All academic CLI reports explicitly set `submission_enabled=false`.
-- Allowed source URLs only validate domain allowlisting and timestamp metadata; **they do not independently authenticate the contents of an official page**.
-- Academic approval and review code is *not* connected to the main browser executor. Never treat these modules as protection for the original AIHawk browser flow.
-- No AI model receives permission to approve an application.
-- Audit exports exclude applicant names, form values and credentials, keeping a fingerprint and event timestamps.
-- No real university form was opened or submitted as part of these tests.
+## Remaining prerequisites for automatic academic submission
 
-### Outstanding before a production-ready system
+1. Production institutional adapters: every portal has distinct forms,
+   authentication, uploads, consent screens, closing dates and confirmation
+   mechanisms.
+2. Browser-enforced prevention of early/unreviewed submissions. The original
+   AIHawk model has broad browser access, including actions that may submit
+   forms before the final submit call. A prompt or in-memory approval record
+   alone does not solve this.
+3. Authenticated, persistent human approval at the exact submission boundary,
+   rather than only a manually reviewed preview.
+4. Site-specific end-to-end tests against authorized test accounts and test
+   pages, including duplicate prevention and submission-proof checks.
+5. Production hardening: privacy, consent, third-party model disclosures,
+   dependency audit, prompt-injection resistance and supported-platform CI.
 
-1. Implement authenticated academic source retrieval and manual/automated cross-checks of the actual university requirements.
-2. Implement institutional portal adapters that only perform reviewed operations and cannot bypass a browser-level no-submit policy; validate keyboard, JavaScript and navigation submission vectors.
-3. Build a real human preview/approval UI wired to a server-side, durable, one-use authorization check.
-4. Add provenance-linked credential/fees/visa/legalization schemas and source versioning.
-5. Connect the versioned offline OrbitApply exchange record to the actual OrbitApply application/database and add cross-repository end-to-end tests.
-6. Validate under supported Python 3.11/3.12 versions and run the original repository's full test suite and CI before merging.
-
-Do not merge this draft PR or enable automatic university submission until the remaining gates have been implemented and verified.
+**Do not merge as production-ready or use for automatic university submissions.**
+`main` remains unchanged; the academic implementation is in `develop`
+and its draft pull request.
