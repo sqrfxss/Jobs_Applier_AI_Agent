@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -22,7 +22,7 @@ def manifest():
 
 def test_attachment_hash_derived_from_file_contents(tmp_path):
     (tmp_path / "cv.pdf").write_bytes(b"my actual CV file")
-    preview, title, hosts, sources = application_from_manifest(manifest(), manifest_dir=tmp_path)
+    preview, _, _, _ = application_from_manifest(manifest(), manifest_dir=tmp_path)
     assert preview.attachment_hashes == ("sha256:" + hashlib.sha256(b"my actual CV file").hexdigest(),)
     assert preview.opportunity_url.endswith("/form")
 
@@ -46,7 +46,7 @@ def test_capture_requires_real_matching_phrase(monkeypatch):
     import aihawk.academic_ops as ops
     page = PageSnapshot(
         "https://uni.example.edu/req", "https://uni.example.edu/req",
-        datetime(2026, 11, 20, tzinfo=timezone.utc), "0" * 64,
+        datetime(2026, 11, 20, tzinfo=UTC), "0" * 64,
         "text/html", "TOEFL Home Edition is accepted here."
     )
     monkeypatch.setattr(ops, "fetch_official_page", lambda *a, **kw: page)
@@ -60,7 +60,7 @@ def test_capture_requires_real_matching_phrase(monkeypatch):
 
 def test_evidence_unmatched_phrase_fails(monkeypatch):
     import aihawk.academic_ops as ops
-    page = PageSnapshot("a", "b", datetime.now(timezone.utc), "0" * 64, "text/html", "IELTS only.")
+    page = PageSnapshot("a", "b", datetime.now(UTC), "0" * 64, "text/html", "IELTS only.")
     monkeypatch.setattr(ops, "fetch_official_page", lambda *a, **kw: page)
     with pytest.raises(ValueError):
         evidence_capture("https://uni.example.edu", official_hosts=("uni.example.edu",),
