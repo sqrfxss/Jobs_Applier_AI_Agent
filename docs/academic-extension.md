@@ -1,33 +1,82 @@
-# Academic applications extension (development branch)
+# Academic applications extension — development branch
 
-The fork currently contains **isolated, reviewable building blocks** for academic applications. It does not automatically apply to university portals and does not modify the pre-existing job-application submission engine.
+## Verified implementation status (2026-11-20)
 
-## Implemented
+This extension is a **working, tested offline academic eligibility and review foundation**, not a completed university portal autopilot. It does not send applications and does not alter AIHawk's existing job-submission code.
 
-- `aihawk.academic`: evidence-only evaluation of deadlines, exam names, scores and document legalization; missing facts produce `needs_review`.
-- `aihawk.academic_sources`: structured records of requirement text, URL, institution and retrieval time; only explicitly allowlisted HTTPS institutional domains are accepted.
-- `aihawk.academic_approval`: a one-use approval token bound to a SHA-256 fingerprint of the exact application fields, target URL, applicant identifier and attachment hashes.
-- `tests/test_academic.py` and `tests/test_academic_workflow.py`: boundary and regression tests for these components.
+### Modules
 
-## Critical limitations
+| Module | Function | Verification |
+| --- | --- | --- |
+| `aihawk.academic` | Deterministic eligibility for deadline, accepted exam, score and legalization | Automated unit tests |
+| `aihawk.academic_sources` | Evidence metadata with HTTPS allowlist, timestamps and text | Automated unit tests; no live source verification |
+| `aihawk.academic_approval` | One-use fingerprint-bound approval record | Automated unit tests |
+| `aihawk.academic_review` | Draft/review/approval/manual-submission state machine and redacted audit | Automated unit tests |
+| `aihawk.academic_cli` | JSON input -> JSON eligibility report; never submits | Automated unit tests |
 
-1. An allowed domain **does not prove** that retrieved information is current, authentic or correctly interpreted. The institutional host must be independently verified and a retrieval component must still fetch and parse official evidence.
-2. The approval gate is **not yet wired** into `aihawk.apply` or the browser tool dispatch. Until the browser actions are restricted at code level, a model may potentially submit a form before explicit approval. Do not run real academic submissions with this branch.
-3. The existing AIHawk job submission path is unchanged; this release does not implement per-form human approval for that existing path.
-4. In-memory approvals are not persisted; only an authenticated, human-operated UI should call `approve`. Never expose approval creation as a model-accessible tool.
-5. No live university pages have been fetched or verified by these modules.
+### Locally verified checks
 
-## Next engineering changes
+On a connected Windows host, 22 tests across:
+- `tests/test_academic.py`
+- `tests/test_academic_workflow.py`
+- `tests/test_academic_cli.py`
+- `tests/test_academic_review.py`
 
-- Establish an official-source registry and verified retrieval with dates, documentary evidence, and change detection.
-- Add validated, source-specific TOEFL Home Edition rules, fee rules, legalization and certified translation stages, and program-specific requirements.
-- Add a browser action monitor and deny any submit actions (including scripts, Enter and navigation-triggered submission) without a one-time approval for the currently filled form. Do not rely on prompting the model.
-- Build a human preview/approve UI and an immutable per-application audit trail.
-- Create versioned OrbitApply interchange schemas and integration tests.
-- Threat-model prompt injection from pages, browser-profile permissions and mailbox access before enabling real submissions.
+completed successfully with `22 passed` using `py -m pytest`. This was a **module-level** test run from downloaded GitHub files, not the complete original repository test suite. The fork currently has no GitHub Actions runs, so CI remains unverified.
 
-## Developer checks
+### Run offline evaluation
 
-Run `pytest -q tests/test_academic.py tests/test_academic_workflow.py`.
-No test runs have been verified in this fork yet; GitHub Actions currently reports no workflow runs.
-Do not merge this draft PR until CI passes and the browser submission risk is addressed.
+1. Install Python 3.11 or 3.12 and the original project's developer dependencies, or provide the `src` directory on `PYTHONPATH`.
+2. Prepare a UTF-8 JSON document with this structure:
+
+```json
+{
+  "applicant": {
+    "language_test": "TOEFL Home Edition",
+    "language_score": 95,
+    "documents_legalized": false
+  },
+  "opportunities": [
+    {
+      "institution": "Example University (illustrative only)",
+      "program": "MSc Example",
+      "official_hosts": ["example.edu"],
+      "requirements": {
+        "deadline": "2027-02-01",
+        "accepted_language_tests": ["TOEFL Home Edition"],
+        "minimum_language_score": 90,
+        "requires_legalization_at_application": false
+      },
+      "sources": []
+    }
+  ]
+}
+```
+
+The illustrative entry **does not constitute a verified real programme**. Because `sources` is empty, the result is `needs_review`.
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path .\src).Path
+py -m aihawk.academic_cli evaluate .\academic-input.json .\academic-output.json --date 2026-11-20
+py -m pytest -q tests/test_academic.py tests/test_academic_workflow.py tests/test_academic_cli.py tests/test_academic_review.py
+```
+
+### Safety restrictions
+
+- All academic CLI reports explicitly set `submission_enabled=false`.
+- Allowed source URLs only validate domain allowlisting and timestamp metadata; **they do not independently authenticate the contents of an official page**.
+- Academic approval and review code is *not* connected to the main browser executor. Never treat these modules as protection for the original AIHawk browser flow.
+- No AI model receives permission to approve an application.
+- Audit exports exclude applicant names, form values and credentials, keeping a fingerprint and event timestamps.
+- No real university form was opened or submitted as part of these tests.
+
+### Outstanding before a production-ready system
+
+1. Implement authenticated academic source retrieval and manual/automated cross-checks of the actual university requirements.
+2. Implement institutional portal adapters that only perform reviewed operations and cannot bypass a browser-level no-submit policy; validate keyboard, JavaScript and navigation submission vectors.
+3. Build a real human preview/approval UI wired to a server-side, durable, one-use authorization check.
+4. Add provenance-linked credential/fees/visa/legalization schemas and source versioning.
+5. Add versioned OrbitApply import/export and end-to-end tests.
+6. Validate under supported Python 3.11/3.12 versions and run the original repository's full test suite and CI before merging.
+
+Do not merge this draft PR or enable automatic university submission until the remaining gates have been implemented and verified.
