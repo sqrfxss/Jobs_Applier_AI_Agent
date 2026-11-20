@@ -5,6 +5,7 @@ No real university endpoint is contacted and no application is sent.
 from __future__ import annotations
 
 import pytest
+
 from aihawk.academic_browser import PreparationNetworkGuard, plan_from_manifest, prepare_fields
 
 pytestmark = pytest.mark.browser
