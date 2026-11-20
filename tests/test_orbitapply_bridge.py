@@ -36,7 +36,7 @@ def test_invalid_level_rejected():
 def test_fake_submitted_status_rejected():
     record = sample().to_record()
     record["application_status"] = "submitted"
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         validate_exchange(record)
 
 
