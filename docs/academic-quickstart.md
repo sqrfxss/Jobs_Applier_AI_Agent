@@ -1,0 +1,117 @@
+# Academic application workflow — standalone user guide
+
+**This extension does not connect to OrbitApply.** It is a standalone, local
+research and application-preparation flow. It **never submits** a university
+application and never signs in to a university portal. The upstream AIHawk
+job-application browser is a separate system with its own security risks.
+
+## 1. Prepare a private manifest
+
+Create a file named `application.json` in a protected local directory
+(not in the public GitHub repository). Replace every example value:
+
+```json
+{
+  "title": "My reviewed MSc application",
+  "official_application_url": "https://admissions.example.edu/apply",
+  "official_hosts": ["example.edu"],
+  "applicant_id": "local-reference",
+  "fields": {
+    "programme": "Example MSc",
+    "full_name": "Replace with your official name",
+    "email": "replace@example.com"
+  },
+  "attachments": ["cv.pdf"],
+  "source_urls": ["https://example.edu/admissions"]
+}
+```
+
+All `example.edu` values are **illustrative**; they are not actual verified
+admission or application links. Only use an institution's independently
+confirmed domains and the actual URL of its application portal.
+
+Attachments must exist in the manifest's directory or use valid local paths.
+Their contents are hashed; the preview does not embed file bytes. Keep the
+manifest, the preview HTML and actual CV in a private user directory.
+
+## 2. Capture evidence from an official public source
+
+Use an exact phrase that appears on a current official page. This example
+captures the Maastricht homepage identity, **not** an admission rule:
+
+```powershell
+py -m aihawk.academic_ops capture --url "https://www.maastrichtuniversity.nl/" --host "maastrichtuniversity.nl" --phrase "Maastricht" --requirement institution_homepage --out .\maastricht-homepage.json
+```
+
+A capture contains the URL, retrieval timestamp, SHA-256 document digest and
+surrounding excerpt. A successful exact-text match cannot prove that the
+requirement was correctly interpreted, is current for a specific intake,
+or applies to a specific degree. Institution-owned domains must be independently
+established before adding them to a host allowlist.
+
+The fetcher rejects disallowed redirect destinations, oversized responses,
+non-public IPs returned during DNS prechecks and unsupported MIME types. The
+network still needs egress protections against DNS rebinding, and some portals
+do not render essential content in public HTML.
+
+## 3. Generate the review
+
+```powershell
+py -m aihawk.academic_ops preview .\application.json .\application-review.html
+```
+
+Open the HTML file locally. Verify identity, programme, claimed eligibility,
+language requirements, document authenticity, translations, legalization,
+tuition/deposit requirements and the current deadline. This file is static:
+no scripts or live form and no submit button.
+
+## 4. Human-controlled manual handoff
+
+```powershell
+py -m aihawk.academic_ops handoff .\application.json
+```
+
+This operation requires an actual interactive terminal and an exact typed
+fingerprint challenge. It opens the allowlisted institutional URL in a browser.
+The operator must complete and submit the university application manually.
+No automatic browser-fill or submission permission is granted.
+
+## 5. Eligibility assessment
+
+`python -m aihawk.academic_cli evaluate input.json result.json` evaluates
+explicitly supplied programme facts without performing network access.
+An apparent match is **preliminary**; even with valid source URL and timestamp
+metadata, confirmation requires a current official page and a human review.
+Missing requirements generate `needs_review`, not an invented yes.
+
+`aihawk.academic_programs` separately models TOEFL Home Edition vs. test
+centre exams, scores, legalization and certified-translation timing, fees,
+deposits, tuition and spouse-related visa checks. Fees that are not provided
+are unknown, never automatically zero. Immigration decisions are not inferred
+from academic admission rules.
+
+## 6. Development and verification
+
+The academic extension includes isolated pytest tests for:
+- Conservative eligibility and test-format matching
+- Official-source metadata, URL allowlists and safe public fetching
+- Human review, edit invalidation, one-use approval, redacted audit
+- Static HTML preview and interactive manual opening
+- JSON CLI and application attachment hashing
+- Fee, tuition, deposit, documentation timing and family-visa flags
+
+Run in the configured `develop` checkout with Python 3.11 or 3.12 and
+the project's developer dependencies. GitHub Actions has a standalone test
+workflow across Linux/Windows and Python 3.11/3.12. The upstream AIHawk
+tests remain a separate, heavier suite.
+
+## Not production complete
+
+The existing browser executor still permits uncontrolled actions by a
+model. This academic extension **does not wire its approval token to that
+executor** and must not be described as a safe automated submission system.
+Actual authenticated admissions portals differ in legal agreements, identity
+proof, third-party sign-on, file uploads, required consents and response
+confirmation. Each demands a tested, site-specific browser adapter with
+enforced human control before any automated submission can be enabled.
+No automatic applications have been sent by this extension.
