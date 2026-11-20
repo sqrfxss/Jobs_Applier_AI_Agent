@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 import pytest
+
 from aihawk.academic_approval import ApplicationPreview, ApprovalGate
 from aihawk.academic_sources import RequirementSource, validate_source
 
