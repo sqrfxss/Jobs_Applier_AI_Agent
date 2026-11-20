@@ -92,6 +92,9 @@ def main(argv: list[str] | None = None) -> int:
     handoff.add_argument("manifest", type=Path)
     autofill = subs.add_parser("autofill", help="Prepare explicitly mapped controls in a visible browser; user submits manually.")
     autofill.add_argument("manifest", type=Path)
+    inspect = subs.add_parser("inspect", help="Read form labels and control types without accessing applicant values.")
+    inspect.add_argument("manifest", type=Path)
+    inspect.add_argument("output", type=Path)
     for name in ("track-prepared", "track-submitted", "track-status"):
         track = subs.add_parser(name, help="Record or inspect local redacted application status.")
         track.add_argument("manifest", type=Path)
@@ -99,6 +102,11 @@ def main(argv: list[str] | None = None) -> int:
         if name == "track-submitted":
             track.add_argument("--proof", type=Path, help="Local confirmation evidence file (optional).")
     args = parser.parse_args(argv)
+
+    if args.action == "inspect":
+        from aihawk.academic_inspect import run_interactive_inspection
+
+        return run_interactive_inspection(args.manifest, args.output)
 
     if args.action == "autofill":
         from aihawk.academic_browser import run_interactive
