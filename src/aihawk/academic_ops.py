@@ -127,9 +127,10 @@ def main(argv: list[str] | None = None) -> int:
                 if input(f"Only after manual submission, type {challenge}: ") != challenge:
                     print("No submission recorded.")
                     return 1
+                proof_path = None if args.proof is None else (args.manifest.parent / args.proof).resolve()
                 status = registry.record_manual_submission(
                     preview, title=title, now=datetime.now(UTC), human_attested=True,
-                    proof_path=args.proof, private_root=args.manifest.parent,
+                    proof_path=proof_path, private_root=args.manifest.parent,
                 )
         print(f"Local status: {status.state if status else 'not_recorded'}. No university contacted.")
         return 0
