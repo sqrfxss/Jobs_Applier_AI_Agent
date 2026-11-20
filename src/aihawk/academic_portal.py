@@ -9,9 +9,7 @@ from __future__ import annotations
 import html
 import sys
 import webbrowser
-from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from aihawk.academic_approval import ApplicationPreview
 from aihawk.academic_sources import _host
