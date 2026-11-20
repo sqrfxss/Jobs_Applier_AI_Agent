@@ -13,16 +13,18 @@ This extension is a **working, tested offline academic eligibility and review fo
 | `aihawk.academic_approval` | One-use fingerprint-bound approval record | Automated unit tests |
 | `aihawk.academic_review` | Draft/review/approval/manual-submission state machine and redacted audit | Automated unit tests |
 | `aihawk.academic_cli` | JSON input -> JSON eligibility report; never submits | Automated unit tests |
+| `aihawk.orbitapply_bridge` | Versioned, offline academic assessment exchange records | Automated unit tests |
 
 ### Locally verified checks
 
-On a connected Windows host, 22 tests across:
+On a connected Windows host, 26 tests across:
 - `tests/test_academic.py`
 - `tests/test_academic_workflow.py`
 - `tests/test_academic_cli.py`
 - `tests/test_academic_review.py`
+- `tests/test_orbitapply_bridge.py`
 
-completed successfully with `22 passed` using `py -m pytest`. This was a **module-level** test run from downloaded GitHub files, not the complete original repository test suite. The fork currently has no GitHub Actions runs, so CI remains unverified.
+completed successfully with `26 passed` using `py -m pytest`. This was a **module-level** test run from downloaded GitHub files, not the complete original repository test suite. The fork currently has no GitHub Actions runs, so CI remains unverified.
 
 ### Run offline evaluation
 
@@ -58,7 +60,7 @@ The illustrative entry **does not constitute a verified real programme**. Becaus
 ```powershell
 $env:PYTHONPATH = (Resolve-Path .\src).Path
 py -m aihawk.academic_cli evaluate .\academic-input.json .\academic-output.json --date 2026-11-20
-py -m pytest -q tests/test_academic.py tests/test_academic_workflow.py tests/test_academic_cli.py tests/test_academic_review.py
+py -m pytest -q tests/test_academic.py tests/test_academic_workflow.py tests/test_academic_cli.py tests/test_academic_review.py tests/test_orbitapply_bridge.py
 ```
 
 ### Safety restrictions
@@ -76,7 +78,7 @@ py -m pytest -q tests/test_academic.py tests/test_academic_workflow.py tests/tes
 2. Implement institutional portal adapters that only perform reviewed operations and cannot bypass a browser-level no-submit policy; validate keyboard, JavaScript and navigation submission vectors.
 3. Build a real human preview/approval UI wired to a server-side, durable, one-use authorization check.
 4. Add provenance-linked credential/fees/visa/legalization schemas and source versioning.
-5. Add versioned OrbitApply import/export and end-to-end tests.
+5. Connect the versioned offline OrbitApply exchange record to the actual OrbitApply application/database and add cross-repository end-to-end tests.
 6. Validate under supported Python 3.11/3.12 versions and run the original repository's full test suite and CI before merging.
 
 Do not merge this draft PR or enable automatic university submission until the remaining gates have been implemented and verified.
