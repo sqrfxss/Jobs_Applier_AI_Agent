@@ -19,7 +19,7 @@ from aihawk.official_fetch import fetch_official_page
 def _payload(path: Path) -> dict:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
-        raise ValueError("Application manifest must contain a JSON object.")
+        raise TypeError("Application manifest must contain a JSON object.")
     return data
 
 
