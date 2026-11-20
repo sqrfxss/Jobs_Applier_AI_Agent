@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True)
@@ -47,7 +47,7 @@ class ApprovalGate:
     def approve(self, preview: ApplicationPreview, *, reviewer: str, now: datetime) -> Approval:
         if not reviewer.strip() or now.tzinfo is None:
             raise ValueError("Named reviewer and timezone-aware approval time are required.")
-        approval = Approval(preview.fingerprint(), reviewer.strip(), now.astimezone(timezone.utc))
+        approval = Approval(preview.fingerprint(), reviewer.strip(), now.astimezone(UTC))
         self._approved[approval.fingerprint] = approval
         return approval
 
