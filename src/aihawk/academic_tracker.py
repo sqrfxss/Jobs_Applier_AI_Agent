@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
+from typing import Self
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -69,7 +70,7 @@ class LocalApplicationRegistry:
     def close(self) -> None:
         self.db.close()
 
-    def __enter__(self) -> LocalApplicationRegistry:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *_args) -> None:
