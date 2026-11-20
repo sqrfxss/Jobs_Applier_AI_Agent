@@ -81,6 +81,6 @@ Written by the AIHawk team:
 
 ## Academic applications (experimental fork extension)
 
-This fork includes a **standalone, non-submitting** workflow for researching university requirements and preparing reviewed application details. It can capture exact quotes from allowlisted official public pages, evaluate explicit admissions conditions, produce a local application preview, and open the official portal for **manual** completion.
+This fork includes a **standalone university application preparation workflow**. It can capture exact quotes from allowlisted official public pages, evaluate explicitly supplied admissions conditions, produce a local application preview, and optionally prepare approved text/select/upload fields in a visible Playwright browser. The operator handles university sign-in and final form submission manually. A private local SQLite registry records preparation, self-reported submission and hashed evidence while guarding against duplicate submission records.
 
 Start with [the academic quickstart](docs/academic-quickstart.md) and [the implementation/status notes](docs/academic-extension.md). This is **not** an automated university submission feature; its review and approval code is not connected to AIHawk's original application browser. Keep private documents outside Git and do not turn on unattended academic submissions.
