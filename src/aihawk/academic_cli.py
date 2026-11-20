@@ -29,7 +29,7 @@ def evaluate_document(payload: dict, *, today: date) -> dict:
     for entry in payload["opportunities"]:
         requirement = entry["requirements"]
         allowed_hosts = tuple(entry.get("official_hosts", ()))
-        verified_sources = []
+        metadata_valid_sources = []
         source_errors = []
         for raw in entry.get("sources", []):
             try:
@@ -41,7 +41,7 @@ def evaluate_document(payload: dict, *, today: date) -> dict:
                     evidence=raw["evidence"],
                 )
                 validate_source(source, official_hosts=allowed_hosts, now=datetime.now().astimezone())
-                verified_sources.append({
+                metadata_valid_sources.append({
                     "url": source.source_url,
                     "retrieved_at": source.retrieved_at.isoformat(),
                     "requirement": source.requirement,
@@ -51,7 +51,7 @@ def evaluate_document(payload: dict, *, today: date) -> dict:
                 source_errors.append(str(error))
         # Missing or invalid provenance cannot be silently treated as verified.
         requirement_keys = set(requirement)
-        sourced_keys = {item["requirement"] for item in verified_sources}
+        sourced_keys = {item["requirement"] for item in metadata_valid_sources}
         missing = sorted(requirement_keys - sourced_keys)
         application = AcademicOpportunity(
             title=entry["program"],
@@ -64,15 +64,22 @@ def evaluate_document(payload: dict, *, today: date) -> dict:
         reasons = list(assessment.reasons)
         verdict = assessment.verdict.value
         if missing or source_errors:
-            reasons.append("Requirements lack validated, attributable source metadata; manual review required.")
-            if verdict == "eligible":
-                verdict = "needs_review"
+            reasons.append("Some requirements lack even valid source metadata.")
+        # Source URL + timestamp + user-provided quote are not independently verified
+        # page contents, nor can they establish that an interpretation is correct.
+        # Never declare confirmed eligibility from unverified metadata alone.
+        if verdict == "eligible":
+            verdict = "needs_review"
+            reasons.append("Preliminary eligibility only: independent page verification and human interpretation are still required.")
         results.append({
             "institution": entry["institution"],
             "program": entry["program"],
             "verdict": verdict,
             "reasons": reasons,
-            "source_records": verified_sources,
+            "source_records": metadata_valid_sources,
+            "source_content_verified": False,
+            "human_requirement_reviewed": False,
+            "preliminary_verdict": assessment.verdict.value,
             "unsourced_requirements": missing,
             "source_errors": source_errors,
             "submission_enabled": False,
