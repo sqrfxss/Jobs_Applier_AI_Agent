@@ -21,3 +21,9 @@ academic-input.json
 academic-output.json
 academic-private.sqlite*
 *.academic.sqlite*
+private-field-inventory.json
+programme.json
+programme-review.json
+homepage-evidence.json
+maastricht-homepage.json
+academic-local/
