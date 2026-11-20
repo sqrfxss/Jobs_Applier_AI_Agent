@@ -65,3 +65,9 @@ def test_evidence_unmatched_phrase_fails(monkeypatch):
     with pytest.raises(ValueError):
         evidence_capture("https://uni.example.edu", official_hosts=("uni.example.edu",),
             exact_phrase="TOEFL", requirement="accepted_language_tests")
+
+def test_attachment_cannot_escape_manifest_directory(tmp_path):
+    payload = manifest()
+    payload["attachments"] = ["../private.txt"]
+    with pytest.raises(ValueError, match="inside the private"):
+        application_from_manifest(payload, manifest_dir=tmp_path)
