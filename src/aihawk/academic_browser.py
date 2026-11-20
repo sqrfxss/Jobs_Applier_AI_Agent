@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from aihawk.academic_approval import ApplicationPreview
-from aihawk.academic_ops import application_from_manifest
+from aihawk.academic_ops import _hash_file, application_from_manifest
 from aihawk.academic_sources import _host
 
 TEXT_INPUT_TYPES = frozenset({"text", "email", "tel", "url", "number", "search", "date"})
@@ -108,9 +108,23 @@ def plan_from_manifest(data: dict[str, Any], *, manifest_dir: Path) -> FormPlan:
     return FormPlan(preview, title, hosts, bindings, file_paths)
 
 
+def _verify_attachments(plan: FormPlan) -> None:
+    """Reject files whose bytes changed after the reviewed fingerprint was built."""
+    if len(plan.file_paths) != len(plan.preview.attachment_hashes):
+        raise PortalPreparationError("Attachment manifest and fingerprint counts disagree.")
+    for (_, path), expected in zip(plan.file_paths, plan.preview.attachment_hashes, strict=True):
+        try:
+            actual = _hash_file(path)
+        except (OSError, ValueError) as error:
+            raise PortalPreparationError("Approved attachment is unavailable or no longer valid.") from error
+        if actual != expected:
+            raise PortalPreparationError("Attachment was modified after review. Rebuild the preview and approve again.")
+
+
 def prepare_fields(page: Any, plan: FormPlan) -> tuple[str, ...]:
     """Fill only reviewed values via typed Playwright locators; NO click or press."""
     verified_portal_host(page.url, plan.hosts)
+    _verify_attachments(plan)
     fields = dict(plan.preview.fields)
     completed: list[str] = []
     for binding in plan.bindings:
@@ -135,7 +149,9 @@ def prepare_fields(page: Any, plan: FormPlan) -> tuple[str, ...]:
             else:
                 if tag != "input" or control_type != "file":
                     raise PortalPreparationError(f"Expected a file input: {binding.field}")
+                _verify_attachments(plan)
                 node.set_input_files(str(plan.file_for(binding.field)), timeout=5000)
+                _verify_attachments(plan)
                 names = node.evaluate("(element) => Array.from(element.files ?? []).map(file => file.name)")
                 if names != [plan.file_for(binding.field).name]:
                     raise PortalPreparationError(f"File upload readback did not match: {binding.field}")
@@ -145,6 +161,7 @@ def prepare_fields(page: Any, plan: FormPlan) -> tuple[str, ...]:
             raise
         except Exception as error:
             raise PortalPreparationError(f"Form field could not be prepared: {binding.field}") from error
+    _verify_attachments(plan)
     return tuple(completed)
 
 
