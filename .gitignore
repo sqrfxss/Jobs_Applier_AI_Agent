@@ -12,3 +12,10 @@ build/
 aihawk.yaml
 cv.md
 answers.yaml
+
+# Private university application files and local evidence.
+academic-private/
+application.json
+application-review.html
+academic-input.json
+academic-output.json
