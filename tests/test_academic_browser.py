@@ -176,3 +176,19 @@ def test_mapping_edit_invalidates_approval_fingerprint(tmp_path):
     changed = plan_from_manifest(altered, manifest_dir=tmp_path)
     assert original.preview.fingerprint() == changed.preview.fingerprint()
     assert original.fingerprint() != changed.fingerprint()
+
+
+def test_attachment_edited_after_review_is_rejected_before_any_field_change(tmp_path):
+    reviewed = plan(tmp_path)
+    (tmp_path / "cv.pdf").write_bytes(b"replaced after approval")
+    controls = {"#name": Locator(), "#programme": Locator(tag="select"), "#cv": Locator(field_type="file")}
+    with pytest.raises(PortalPreparationError, match="modified after review"):
+        prepare_fields(Page(controls), reviewed)
+    assert not any(control.calls for control in controls.values())
+
+
+def test_attachment_disappeared_after_review_is_rejected(tmp_path):
+    reviewed = plan(tmp_path)
+    (tmp_path / "cv.pdf").unlink()
+    with pytest.raises(PortalPreparationError, match="unavailable"):
+        prepare_fields(Page({"#name": Locator()}), reviewed)
