@@ -71,3 +71,20 @@ def test_attachment_cannot_escape_manifest_directory(tmp_path):
     payload["attachments"] = ["../private.txt"]
     with pytest.raises(ValueError, match="inside the private"):
         application_from_manifest(payload, manifest_dir=tmp_path)
+
+def test_preview_displays_exact_mappings_and_digest(tmp_path):
+    payload = manifest()
+    payload["portal_bindings"] = [
+        {"field": "first_name", "selector": "input[name='first_name']", "kind": "text"},
+        {"field": "cv.pdf", "selector": "input[type='file']", "kind": "upload"},
+    ]
+    (tmp_path / "cv.pdf").write_bytes(b"test CV")
+    original = tmp_path / "manifest.json"
+    destination = tmp_path / "review.html"
+    original.write_text(json.dumps(payload), encoding="utf-8")
+    assert main(["preview", str(original), str(destination)]) == 0
+    markup = destination.read_text(encoding="utf-8")
+    assert "Exact browser field mapping" in markup
+    assert "input[name=&#x27;first_name&#x27;]" in markup
+    assert "Preparation fingerprint" in markup
+    assert "nothing has been submitted" in markup
