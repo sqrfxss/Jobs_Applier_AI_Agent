@@ -1,0 +1,50 @@
+name: academic-safety-tests
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'src/aihawk/academic*.py'
+      - 'src/aihawk/official_fetch.py'
+      - 'src/aihawk/orbitapply_bridge.py'
+      - 'tests/test_academic*.py'
+      - 'tests/test_official_fetch.py'
+      - 'tests/test_orbitapply_bridge.py'
+      - '.github/workflows/academic-safety-tests.yml'
+  pull_request:
+    paths:
+      - 'src/aihawk/academic*.py'
+      - 'src/aihawk/official_fetch.py'
+      - 'src/aihawk/orbitapply_bridge.py'
+      - 'tests/test_academic*.py'
+      - 'tests/test_official_fetch.py'
+      - 'tests/test_orbitapply_bridge.py'
+      - '.github/workflows/academic-safety-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  academic-standalone:
+    name: Academic safeguards / ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install standalone test requirements
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Compile academic extension
+        run: python -m compileall -q src/aihawk
+      - name: Run security and academic tests
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m pytest -q tests/test_academic.py tests/test_academic_cli.py tests/test_academic_workflow.py tests/test_academic_review.py tests/test_academic_portal.py tests/test_academic_ops.py tests/test_official_fetch.py tests/test_orbitapply_bridge.py
