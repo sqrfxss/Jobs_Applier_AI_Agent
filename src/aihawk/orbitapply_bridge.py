@@ -14,7 +14,6 @@ from urllib.parse import urlsplit
 
 from aihawk.academic import Assessment, Verdict
 
-
 SCHEMA_VERSION = "aihawk.orbitapply.academic.v1"
 VALID_LEVELS = frozenset(("master", "phd"))
 VALID_VERDICTS = frozenset(x.value for x in Verdict)
@@ -64,7 +63,7 @@ def validate_exchange(record: dict[str, Any]) -> dict[str, Any]:
     if record.get("level") not in VALID_LEVELS:
         raise ValueError("Unsupported academic level.")
     if not isinstance(record.get("source_urls"), list) or not isinstance(record.get("eligibility_reasons"), list):
-        raise ValueError("Sources and reasons must be arrays.")
+        raise TypeError("Sources and reasons must be arrays.")
     date.fromisoformat(record["evaluated_on"])
     if not record.get("university") or not record.get("programme"):
         raise ValueError("University and programme are required.")
