@@ -120,7 +120,35 @@ does not intercept. This implementation is not an isolation sandbox for
 malicious pages and is not a guarantee that every real university site can be
 automated. Only operate on verified, trusted university application pages.
 
-## 6. Eligibility assessment
+## 6. Standalone status and duplicate-prevention registry
+
+Record an application in the private local SQLite registry after preparation,
+and inspect its state without contacting any university:
+
+```powershell
+aihawk-academic track-prepared .\\application.json
+aihawk-academic track-status .\\application.json
+```
+
+**Only after you personally submit the form**, use:
+
+```powershell
+aihawk-academic track-submitted .\\application.json --proof .\\receipt.pdf
+```
+
+The final command asks you to type a submission-specific challenge in an
+interactive terminal. Without that challenge it makes no status change.
+Evidence files must be inside the manifest's private directory. The tool
+records only the SHA-256 of a proof file, not the receipt's contents.
+An application recorded as submitted cannot be silently prepared or reported
+again. A reported submission is **not** official university acceptance or
+confirmed receipt; verify the confirmation page or correspondence yourself.
+
+The registry database `academic-private.sqlite` is stored beside the
+manifest. Never place this directory in public version control. For
+additional control use `--db` with a private absolute filename.
+
+## 7. Eligibility assessment
 
 `python -m aihawk.academic_cli evaluate input.json result.json` evaluates
 explicitly supplied programme facts without performing network access.
@@ -134,7 +162,7 @@ deposits, tuition and spouse-related visa checks. Fees that are not provided
 are unknown, never automatically zero. Immigration decisions are not inferred
 from academic admission rules.
 
-## 7. Development and verification
+## 8. Development and verification
 
 The academic extension includes isolated pytest tests for:
 - Conservative eligibility and test-format matching
