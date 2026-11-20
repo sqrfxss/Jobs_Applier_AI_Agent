@@ -1,26 +1,33 @@
 # Academic applications extension (development branch)
 
-This fork is being extended toward a reviewed, auditable university-application workflow. Existing job-search and submission code remains unchanged in this initial patch.
+The fork currently contains **isolated, reviewable building blocks** for academic applications. It does not automatically apply to university portals and does not modify the pre-existing job-application submission engine.
 
-## Implemented foundation
+## Implemented
 
-- `aihawk.academic` provides a deterministic, explicit-data-only eligibility check.
-- Three outcomes: `eligible`, `ineligible`, and `needs_review`.
-- Checks deadlines, language test name and score, and document legalization at application.
-- Missing deadlines or requirements trigger human review rather than an invented approval.
-- The evaluation uses an injected date for reproducible tests.
-- The module does **not** integrate with search, browser automation or the application submission flow yet.
+- `aihawk.academic`: evidence-only evaluation of deadlines, exam names, scores and document legalization; missing facts produce `needs_review`.
+- `aihawk.academic_sources`: structured records of requirement text, URL, institution and retrieval time; only explicitly allowlisted HTTPS institutional domains are accepted.
+- `aihawk.academic_approval`: a one-use approval token bound to a SHA-256 fingerprint of the exact application fields, target URL, applicant identifier and attachment hashes.
+- `tests/test_academic.py` and `tests/test_academic_workflow.py`: boundary and regression tests for these components.
 
-## Safety and implementation priorities
+## Critical limitations
 
-1. Prevent submission by browser tools until the user approves the exact filled application.
-2. Verify facts from official university pages; keep source URL, retrieval timestamp, and requirement provenance.
-3. Preserve source-specific language exam types (e.g. TOEFL Home Edition vs. test-center TOEFL), score scales, and per-program rules.
-4. Model translations, authentication/legalization stages, fees, scholarships, and spouse-related constraints separately.
-5. Add academic-opportunity discovery and OrbitApply exchange through a versioned, documented interface.
-6. Keep CVs, passwords, browser profiles, and API credentials out of Git; avoid sending private data to third parties without disclosure and consent.
+1. An allowed domain **does not prove** that retrieved information is current, authentic or correctly interpreted. The institutional host must be independently verified and a retrieval component must still fetch and parse official evidence.
+2. The approval gate is **not yet wired** into `aihawk.apply` or the browser tool dispatch. Until the browser actions are restricted at code level, a model may potentially submit a form before explicit approval. Do not run real academic submissions with this branch.
+3. The existing AIHawk job submission path is unchanged; this release does not implement per-form human approval for that existing path.
+4. In-memory approvals are not persisted; only an authenticated, human-operated UI should call `approve`. Never expose approval creation as a model-accessible tool.
+5. No live university pages have been fetched or verified by these modules.
 
-## Developer check
+## Next engineering changes
 
-Run `pytest -q tests/test_academic.py`. This initial module has no network or browser dependencies.
-Do not merge into `main` until CI tests pass and the submit path receives a code-level approval gate.
+- Establish an official-source registry and verified retrieval with dates, documentary evidence, and change detection.
+- Add validated, source-specific TOEFL Home Edition rules, fee rules, legalization and certified translation stages, and program-specific requirements.
+- Add a browser action monitor and deny any submit actions (including scripts, Enter and navigation-triggered submission) without a one-time approval for the currently filled form. Do not rely on prompting the model.
+- Build a human preview/approve UI and an immutable per-application audit trail.
+- Create versioned OrbitApply interchange schemas and integration tests.
+- Threat-model prompt injection from pages, browser-profile permissions and mailbox access before enabling real submissions.
+
+## Developer checks
+
+Run `pytest -q tests/test_academic.py tests/test_academic_workflow.py`.
+No test runs have been verified in this fork yet; GitHub Actions currently reports no workflow runs.
+Do not merge this draft PR until CI passes and the browser submission risk is addressed.
