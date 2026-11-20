@@ -35,10 +35,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+academic-browser = ["playwright>=1.55,<2"]
 dev = ["pytest>=8", "ruff>=0.6", "pyarrow>=15"]  # pyarrow: the pipeline writes description files with it
 
 [project.scripts]
 aihawk = "aihawk.cli:run"
+aihawk-academic = "aihawk.academic_ops:run"
 
 [project.urls]
 Homepage = "https://github.com/feder-cr/Jobs_Applier_AI_Agent"
