@@ -119,7 +119,7 @@ def test_rejects_unknown_or_inferred_values(tmp_path):
 ])
 def test_refuses_unsafe_element_types(tmp_path, tag, kind, field_type):
     data = document()
-    data["portal_bindings"] = [{"field": "full_name", "selector": "#name", "kind": kind}]
+    data["portal_bindings"] = [{"field": "cv.pdf" if kind == "upload" else "full_name", "selector": "#name", "kind": kind}]
     (tmp_path / "cv.pdf").write_bytes(b"file")
     p = plan_from_manifest(data, manifest_dir=tmp_path)
     page = Page({"#name": Locator(tag=tag, field_type=field_type)})
