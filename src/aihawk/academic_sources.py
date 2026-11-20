@@ -7,7 +7,7 @@ institutional host are admitted. HTML and page content remain untrusted.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from urllib.parse import urlsplit
 
 
