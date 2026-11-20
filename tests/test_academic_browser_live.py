@@ -7,6 +7,7 @@ from __future__ import annotations
 import pytest
 
 from aihawk.academic_browser import PreparationNetworkGuard, plan_from_manifest, prepare_fields
+from aihawk.academic_inspect import inspect_controls
 
 pytestmark = pytest.mark.browser
 
@@ -48,6 +49,10 @@ document.querySelector("#name").addEventListener("input", () => {
         context.route(url, lambda route: route.fulfill(status=200, content_type="text/html", body=document))
         page = context.new_page()
         page.goto(url, wait_until="domcontentloaded")
+        inventory = inspect_controls(page, official_hosts=("uni.example.edu",))
+        assert {control["kind"] for control in inventory["controls"]} == {"text", "select", "upload"}
+        assert inventory["values_captured"] is False
+        assert not any(control["selector_candidate"] == "#submit" for control in inventory["controls"])
         guard = PreparationNetworkGuard(("uni.example.edu",))
         context.route("**/*", guard)
         assert prepare_fields(page, plan) == ("full_name", "programme", "cv.pdf")
