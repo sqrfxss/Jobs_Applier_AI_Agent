@@ -109,7 +109,18 @@ def main(argv: list[str] | None = None) -> int:
     manifest = _payload(args.manifest)
     application, title, hosts, sources = application_from_manifest(manifest, manifest_dir=args.manifest.parent)
     if args.action == "preview":
-        markup = render_preview(application, title=title, official_hosts=hosts, sources=sources)
+        binding_summary: tuple[tuple[str, str, str], ...] = ()
+        binding_fingerprint: str | None = None
+        if "portal_bindings" in manifest:
+            from aihawk.academic_browser import plan_from_manifest
+
+            plan = plan_from_manifest(manifest, manifest_dir=args.manifest.parent)
+            binding_summary = tuple((entry.field, entry.selector, entry.kind) for entry in plan.bindings)
+            binding_fingerprint = plan.fingerprint()
+        markup = render_preview(
+            application, title=title, official_hosts=hosts, sources=sources,
+            binding_summary=binding_summary, binding_fingerprint=binding_fingerprint,
+        )
         save_preview(args.output, markup)
         print(f"Saved review preview: {args.output}. Fingerprint: {application.fingerprint()}. Nothing submitted.")
         return 0
