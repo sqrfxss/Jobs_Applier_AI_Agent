@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 from aihawk.academic_approval import ApplicationPreview
