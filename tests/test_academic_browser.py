@@ -21,21 +21,31 @@ class Locator:
         self.enabled = enabled
         self.matches = count
         self.calls = []
+        self.value = None
+        self.upload_name = None
 
     def count(self): return self.matches
     def is_visible(self): return self.visible
     def is_enabled(self): return self.enabled
     def evaluate(self, expression):
-        assert expression == "(element) => element.tagName.toLowerCase()"
-        return self.tag
+        if expression == "(element) => element.tagName.toLowerCase()":
+            return self.tag
+        if "element.files" in expression:
+            return [self.upload_name] if self.upload_name else []
+        raise AssertionError(f"Unexpected DOM evaluation: {expression}")
     def get_attribute(self, name):
         return self.field_type if name == "type" else None
     def fill(self, value, **kwargs):
+        self.value = value
         self.calls.append(("fill", value))
     def select_option(self, **kwargs):
+        self.value = kwargs["value"]
         self.calls.append(("select", kwargs["value"]))
     def set_input_files(self, path, **kwargs):
+        self.upload_name = Path(path).name
         self.calls.append(("upload", path))
+    def input_value(self, **kwargs):
+        return self.value
 
 
 class Page:
