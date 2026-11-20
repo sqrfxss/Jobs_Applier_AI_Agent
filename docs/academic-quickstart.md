@@ -99,10 +99,25 @@ aihawk-academic preview .\\application.json .\\application-review.html
 aihawk-academic autofill .\\application.json
 ```
 
+Before preparing a real form, create a **read-only field inventory**:
+
+```powershell
+aihawk-academic inspect .\\application.json .\\private-field-inventory.json
+```
+
+The visible browser lets you sign in manually. This command inspects
+labels, required indicators, control types and select options only. It
+does not read existing values, passwords, cookies or hidden inputs.
+Inspect results contain untrusted page text and are never automatically
+approved as selectors. Review the suggestions and manually map the intended
+fields before using `autofill`.
+
 The `portal_bindings` above are **synthetic examples**, not selectors verified
 on a real university website. Inspect the institution's actual form and fill
 the mapping only with validated input/select/upload selectors. Every field
 must reference an existing reviewed value or a locally approved attachment.
+Attachment bytes are hashed again before and after form preparation. A
+changed or missing attachment cancels the operation and requires a new review.
 Text and select inputs and files may be prepared; submit buttons and consent
 checkboxes are deliberately excluded.
 
