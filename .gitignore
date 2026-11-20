@@ -19,3 +19,5 @@ application.json
 application-review.html
 academic-input.json
 academic-output.json
+academic-private.sqlite*
+*.academic.sqlite*
