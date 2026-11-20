@@ -9,7 +9,9 @@ through GET or JavaScript, so final submission remains a *human* action.
 
 from __future__ import annotations
 
+import hashlib
 import ipaddress
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -71,6 +73,15 @@ class FormPlan:
 
     def file_for(self, name: str) -> Path:
         return dict(self.file_paths)[name]
+
+    def fingerprint(self) -> str:
+        """Bind approval to both reviewed facts AND exact selectors/actions."""
+        payload = {
+            "reviewed_content": self.preview.fingerprint(),
+            "mappings": [{"field": item.field, "selector": item.selector, "kind": item.kind} for item in self.bindings],
+        }
+        raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def plan_from_manifest(data: dict[str, Any], *, manifest_dir: Path) -> FormPlan:
@@ -164,13 +175,12 @@ def run_interactive(manifest: Path, *, prompt=input) -> int:
     The user alone logs in and eventually submits. The browser session is
     closed on exit. The operator can decline at either typed checkpoint.
     """
-    import json
     import sys
 
     if not sys.stdin.isatty():
         raise PortalPreparationError("An interactive terminal is mandatory for live form preparation.")
     plan = plan_from_manifest(json.loads(manifest.read_text(encoding="utf-8")), manifest_dir=manifest.parent)
-    challenge = plan.preview.fingerprint()[-12:]
+    challenge = plan.fingerprint()[-12:]
     if prompt(f"Type PREPARE {challenge} after reviewing the local preview: ") != f"PREPARE {challenge}":
         return 1
     try:
