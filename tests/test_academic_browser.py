@@ -157,3 +157,11 @@ def test_no_bindings_denied(tmp_path):
     payload["portal_bindings"] = []
     with pytest.raises(PortalPreparationError, match="nonempty"):
         plan_from_manifest(payload, manifest_dir=tmp_path)
+
+def test_mapping_edit_invalidates_approval_fingerprint(tmp_path):
+    original = plan(tmp_path)
+    altered = document()
+    altered["portal_bindings"][0]["selector"] = "input[name='legal_name']"
+    changed = plan_from_manifest(altered, manifest_dir=tmp_path)
+    assert original.preview.fingerprint() == changed.preview.fingerprint()
+    assert original.fingerprint() != changed.fingerprint()
