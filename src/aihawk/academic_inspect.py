@@ -40,7 +40,9 @@ INSPECT_EXPRESSION = r"""() => {
       name: name.slice(0, 120), label: label.slice(0, 180),
       placeholder: placeholder.slice(0, 160),
       selector: unique ? selector : '', unique,
-      required: element.required === true, options, hiddenUpload
+      required: element.required === true, options, hiddenUpload,
+      accept: tag === 'input' && type === 'file' ? (element.getAttribute('accept') || '').slice(0, 200) : '',
+      multiple: tag === 'input' && type === 'file' && element.multiple === true
     });
   }
   return controls;
@@ -70,6 +72,8 @@ def inspect_controls(page: Any, *, official_hosts: tuple[str, ...]) -> dict[str,
             "html_type": kind,
             "required": raw.get("required") is True,
             "hidden_upload": kind == "file" and raw.get("hiddenUpload") is True,
+            "accept_attribute_untrusted": str(raw.get("accept", ""))[:200] if kind == "file" else "",
+            "multiple_files": kind == "file" and raw.get("multiple") is True,
             "options_untrusted": raw.get("options", [])[:35] if isinstance(raw.get("options"), list) else [],
         })
     verified_portal_host(page.url, official_hosts)
