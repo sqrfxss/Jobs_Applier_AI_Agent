@@ -96,6 +96,10 @@ def main(argv: list[str] | None = None) -> int:
         "autofill-stages", help="Prepare individually reviewed stages; human navigates between pages and submits."
     )
     autofill_stages.add_argument("manifest", type=Path)
+    session = subs.add_parser("session", help="One-time login in a dedicated, persistent university-only browser.")
+    session.add_argument("manifest", type=Path)
+    uploads = subs.add_parser("upload-reviewed", help="Upload reviewed files in one persistent browser, checking server receipts.")
+    uploads.add_argument("manifest", type=Path)
     inspect = subs.add_parser("inspect", help="Read form labels and control types without accessing applicant values.")
     inspect.add_argument("manifest", type=Path)
     inspect.add_argument("output", type=Path)
@@ -106,6 +110,16 @@ def main(argv: list[str] | None = None) -> int:
         if name == "track-submitted":
             track.add_argument("--proof", type=Path, help="Local confirmation evidence file (optional).")
     args = parser.parse_args(argv)
+
+    if args.action == "session":
+        from aihawk.academic_browser_session import run_interactive_session
+
+        return run_interactive_session(args.manifest)
+
+    if args.action == "upload-reviewed":
+        from aihawk.academic_uploads import run_interactive_uploads
+
+        return run_interactive_uploads(args.manifest)
 
     if args.action == "inspect":
         from aihawk.academic_inspect import run_interactive_inspection
