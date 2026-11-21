@@ -22,7 +22,8 @@ INSPECT_EXPRESSION = r"""() => {
     const tag = element.tagName.toLowerCase();
     const type = (element.getAttribute('type') || 'text').toLowerCase();
     if (tag === 'input' && !allowed.has(type)) continue;
-    if (element.disabled || element.getClientRects().length === 0) continue;
+    const hiddenUpload = tag === 'input' && type === 'file' && element.getClientRects().length === 0;
+    if (element.disabled || (element.getClientRects().length === 0 && !hiddenUpload)) continue;
     const id = element.id || '';
     const name = element.name || '';
     const selector = id ? '#' + CSS.escape(id)
@@ -39,7 +40,7 @@ INSPECT_EXPRESSION = r"""() => {
       name: name.slice(0, 120), label: label.slice(0, 180),
       placeholder: placeholder.slice(0, 160),
       selector: unique ? selector : '', unique,
-      required: element.required === true, options
+      required: element.required === true, options, hiddenUpload
     });
   }
   return controls;
@@ -68,6 +69,7 @@ def inspect_controls(page: Any, *, official_hosts: tuple[str, ...]) -> dict[str,
             "kind": "select" if kind == "select" else ("upload" if kind == "file" else "text"),
             "html_type": kind,
             "required": raw.get("required") is True,
+            "hidden_upload": kind == "file" and raw.get("hiddenUpload") is True,
             "options_untrusted": raw.get("options", [])[:35] if isinstance(raw.get("options"), list) else [],
         })
     verified_portal_host(page.url, official_hosts)
