@@ -21,6 +21,15 @@ INTERESTING_UNSET_FIELDS = frozenset({
     "First Preference", "Second Preference", "Third Preference",
     "Proof of Language Proficiency",
 })
+# OpenCampus BMAI groups some tab sections without a "Hide ..." heading. These
+# are exact observed textual landmarks, not predictions of current field values.
+BMAI_SECTION_LANDMARKS = (
+    ("Journal of Publication 1", "5 Publications"),
+    ("Name your top three subject-relevant awards", "6 Awards/Extracurriculars"),
+    ("Proof of Language Proficiency", "7 Language"),
+    ("First Preference", "8 PhD preferences"),
+    ("Further documents", "9 Additional Information"),
+)
 
 
 def audit_redacted_snapshot(source: str, *, expected_host: str) -> dict[str, Any]:
@@ -60,6 +69,11 @@ def audit_redacted_snapshot(source: str, *, expected_host: str) -> dict[str, Any
         number = int(item["line"])
         if kind == "Hyperlink" and label.startswith("Hide "):
             section = label.removeprefix("Hide ").strip()
+        if kind == "Text" and expected_host == "mps.cloud.opencampus.net":
+            for label_prefix, section_name in BMAI_SECTION_LANDMARKS:
+                if label.startswith(label_prefix):
+                    section = section_name
+                    break
         if kind == "Edit" and item["state"] == "[BLANK]":
             record = {"line": number, "label": label, "section": section}
             (blank_required if label.rstrip().endswith("*") else blank_other).append(record)
