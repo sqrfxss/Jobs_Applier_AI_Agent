@@ -412,3 +412,97 @@ def test_reviewed_accordion_opens_only_its_file_section(tmp_path):
         assert page.locator("#submit").count() == 1
         context.close()
         browser.close()
+
+
+def test_fake_portal_receipt_without_upload_response_is_rejected(tmp_path):
+    from aihawk.academic_browser import PortalPreparationError
+    from aihawk.academic_uploads import upload_one, upload_plan_from_manifest
+
+    sync_api = pytest.importorskip("playwright.sync_api")
+    (tmp_path / "fake.pdf").write_bytes(b"%PDF-1.4 synthetic file")
+    url = "https://admissions.uni.example.edu/apply"
+    manifest = {
+        "title": "Synthetic false receipt",
+        "official_application_url": url,
+        "official_hosts": ["uni.example.edu"],
+        "applicant_id": "synthetic",
+        "fields": {},
+        "attachments": ["fake.pdf"],
+        "portal_uploads": [{
+            "field": "fake.pdf",
+            "input_selector": "#proof",
+            "upload_button_selector": "#upload",
+            "container_selector": "#proof-area",
+            "receipt_selector": ".file a",
+            "remove_selector": "button.remove",
+            "expected_path": "/apply",
+            "upload_endpoint_path": "/file/ajax",
+        }],
+    }
+    plan = upload_plan_from_manifest(manifest, manifest_dir=tmp_path)
+    html = """<section id='proof-area'>
+      <input id='proof' type='file' hidden>
+      <button id='upload' type='button' onclick='fakeReceipt()'>Upload</button>
+      <div class='file'></div></section>
+      <script>function fakeReceipt(){
+        const f=document.querySelector('#proof').files[0];
+        document.querySelector('.file').innerHTML='<a>'+f.name+'</a>';
+        const b=document.createElement('button');b.className='remove';b.textContent='Remove';
+        document.querySelector('#proof-area').append(b);
+      }</script>"""
+    with sync_api.sync_playwright() as play:
+        browser = play.chromium.launch(headless=True)
+        context = browser.new_context(service_workers="block")
+        context.route(url, lambda route: route.fulfill(content_type="text/html", body=html))
+        page = context.new_page()
+        page.goto(url)
+        with pytest.raises(PortalPreparationError, match="BOTH a successful response"):
+            upload_one(page, context, plan, plan.bindings[0], timeout_ms=600)
+        context.close()
+        browser.close()
+
+
+def test_failed_ajax_response_cannot_confirm_upload_even_with_dom_link(tmp_path):
+    from aihawk.academic_browser import PortalPreparationError
+    from aihawk.academic_uploads import upload_one, upload_plan_from_manifest
+
+    sync_api = pytest.importorskip("playwright.sync_api")
+    (tmp_path / "proof.pdf").write_bytes(b"%PDF-1.4 synthetic file")
+    url = "https://admissions.uni.example.edu/apply"
+    manifest = {
+        "title": "Synthetic HTTP rejection",
+        "official_application_url": url,
+        "official_hosts": ["uni.example.edu"],
+        "applicant_id": "synthetic",
+        "fields": {},
+        "attachments": ["proof.pdf"],
+        "portal_uploads": [{
+            "field": "proof.pdf", "input_selector": "#proof",
+            "upload_button_selector": "#upload", "container_selector": "#proof-area",
+            "receipt_selector": ".file a", "remove_selector": "button.remove",
+            "expected_path": "/apply", "upload_endpoint_path": "/file/ajax",
+        }],
+    }
+    plan = upload_plan_from_manifest(manifest, manifest_dir=tmp_path)
+    html = """<section id='proof-area'>
+      <input id='proof' type='file' hidden>
+      <button id='upload' type='button' onclick='send()'>Upload</button>
+      <div class='file'></div></section>
+      <script>async function send(){
+        const f=document.getElementById('proof').files[0];
+        const response=await fetch('/file/ajax',{method:'POST',body:'synthetic'});
+        document.querySelector('.file').innerHTML='<a>'+f.name+'</a>';
+        const b=document.createElement('button');b.className='remove';b.textContent='Remove';
+        document.querySelector('#proof-area').append(b);
+      }</script>"""
+    with sync_api.sync_playwright() as play:
+        browser = play.chromium.launch(headless=True)
+        context = browser.new_context(service_workers="block")
+        context.route(url, lambda route: route.fulfill(content_type="text/html", body=html))
+        context.route("**/file/ajax", lambda route: route.fulfill(status=422, body="rejected"))
+        page = context.new_page()
+        page.goto(url)
+        with pytest.raises(PortalPreparationError, match="unsuccessful HTTP status"):
+            upload_one(page, context, plan, plan.bindings[0], timeout_ms=1200)
+        context.close()
+        browser.close()
