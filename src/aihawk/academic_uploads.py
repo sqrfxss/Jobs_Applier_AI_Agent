@@ -32,6 +32,7 @@ class UploadMapping:
     remove_selector: str
     expected_path: str
     upload_endpoint_path: str
+    expand_selector: str | None = None
 
     def __post_init__(self) -> None:
         if not self.field or not self.expected_path.startswith("/") or not self.upload_endpoint_path.startswith("/"):
@@ -45,6 +46,12 @@ class UploadMapping:
         )
         if any(not isinstance(value, str) or not value.strip() or len(value) > 300 for value in selectors):
             raise PortalPreparationError("Invalid or missing reviewed file upload selectors.")
+        if self.expand_selector is not None and (
+            not isinstance(self.expand_selector, str)
+            or not self.expand_selector.strip()
+            or len(self.expand_selector) > 300
+        ):
+            raise PortalPreparationError("Invalid reviewed accordion expander selector.")
 
 
 @dataclass(frozen=True)
@@ -192,6 +199,28 @@ def upload_one(page: Any, context: Any, plan: UploadPlan, mapping: UploadMapping
     page.on("filechooser", on_chooser)
     context.route("**/*", guard)
     try:
+        if not button.is_visible():
+            if not mapping.expand_selector:
+                raise PortalPreparationError("Upload button is hidden; an approved expander is required.")
+            expander = page.locator(mapping.expand_selector)
+            if expander.count() != 1 or not expander.is_visible() or not expander.is_enabled():
+                raise PortalPreparationError("Reviewed upload-section expander is missing or unavailable.")
+            metadata = expander.evaluate("""(e) => ({
+                tag: e.tagName.toLowerCase(),
+                label: (e.textContent || '').trim(),
+                href: e.getAttribute('href')
+            })""")
+            if metadata["tag"] not in ("a", "button"):
+                raise PortalPreparationError("Upload-section expander must be a link or button.")
+            if metadata["tag"] == "a" and metadata["href"] not in (None, "") and not metadata["href"].startswith("#"):
+                raise PortalPreparationError("Upload-section expander cannot navigate to another page.")
+            if any(word in metadata["label"].casefold() for word in ("submit", "send", "invite", "referee", "consent", "agree")):
+                raise PortalPreparationError("Reviewed expander label resembles an unsafe application action.")
+            expander.click(timeout=5_000)
+            page.wait_for_timeout(200)
+            _require_page(page, plan, mapping)
+            if not button.is_visible():
+                raise PortalPreparationError("The reviewed upload section did not expand.")
         if not existing_selected:
             control.set_input_files(str(path), timeout=5_000)
         page.wait_for_timeout(250)
