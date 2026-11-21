@@ -126,3 +126,49 @@ def test_redacted_snapshot_cli_does_not_open_browser(tmp_path):
     assert data["live_portal_verified"] is False
     assert data["counts"]["required_blank"] == 1
     assert data["submission_ready"] is False
+
+
+def test_motivation_letter_pdf_flag_uses_reviewed_applicant_and_institution(tmp_path, monkeypatch):
+    import aihawk.academic_motivation as motivation
+    import aihawk.academic_motivation_pdf as pdf_module
+
+    brief = tmp_path / "position.json"
+    brief.write_text("{}", encoding="utf-8")
+    docx = tmp_path / "letter.docx"
+    docx.write_bytes(b"synthetic review source")
+    observed = []
+
+    def deliver_fake(*args, **kwargs):
+        observed.append(("draft", args[0], args[1]))
+        return docx
+
+    def export_fake(source, destination, *, expected_name, expected_institution):
+        observed.append(("pdf", source, destination, expected_name, expected_institution))
+        destination.write_bytes(b"%PDF-1.4 fake")
+        return destination
+
+    monkeypatch.setattr(motivation, "deliver", deliver_fake)
+    monkeypatch.setattr(
+        motivation, "load_brief",
+        lambda path: type("Brief", (), {
+            "applicant_name": "Example Person",
+            "institution": "Example University",
+        })(),
+    )
+    monkeypatch.setattr(pdf_module, "export_letter_pdf", export_fake)
+    assert main(["motivation-letter", str(brief), str(docx), "--pdf"]) == 0
+    assert observed[0][0] == "draft"
+    assert observed[1] == (
+        "pdf", docx, docx.with_suffix(".pdf"), "Example Person", "Example University",
+    )
+    assert docx.with_suffix(".pdf").exists()
+
+
+def test_motivation_letter_does_not_export_pdf_without_explicit_flag(tmp_path, monkeypatch):
+    import aihawk.academic_motivation as motivation
+    import aihawk.academic_motivation_pdf as pdf_module
+
+    docx = tmp_path / "letter.docx"
+    monkeypatch.setattr(motivation, "deliver", lambda *a, **kw: docx)
+    monkeypatch.setattr(pdf_module, "export_letter_pdf", lambda *a, **kw: pytest.fail("Unexpected PDF export"))
+    assert main(["motivation-letter", str(tmp_path/"position.json"), str(docx)]) == 0
