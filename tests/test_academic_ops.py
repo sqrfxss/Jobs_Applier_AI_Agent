@@ -88,3 +88,22 @@ def test_preview_displays_exact_mappings_and_digest(tmp_path):
     assert "input[name=&#x27;first_name&#x27;]" in markup
     assert "Preparation fingerprint" in markup
     assert "nothing has been submitted" in markup
+
+
+@pytest.mark.parametrize("action", ["autofill", "autofill-stages", "inspect"])
+def test_cli_passes_private_persistent_profile_option(monkeypatch, tmp_path, action):
+    import aihawk.academic_browser as browser
+    import aihawk.academic_inspect as inspector
+    import aihawk.academic_stages as stages
+
+    calls = []
+    monkeypatch.setattr(browser, "run_interactive", lambda *a, **kw: calls.append(("autofill", kw)) or 0)
+    monkeypatch.setattr(stages, "run_interactive_journey", lambda *a, **kw: calls.append(("autofill-stages", kw)) or 0)
+    monkeypatch.setattr(inspector, "run_interactive_inspection", lambda *a, **kw: calls.append(("inspect", kw)) or 0)
+
+    args = [action, str(tmp_path / "private.json")]
+    if action == "inspect":
+        args.append(str(tmp_path / "inventory.json"))
+    args.append("--persistent")
+    assert main(args) == 0
+    assert calls == [(action, {"persistent": True})]
