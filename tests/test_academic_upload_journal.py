@@ -9,7 +9,6 @@ import pytest
 from aihawk.academic_browser import PortalPreparationError
 from aihawk.academic_upload_journal import UploadJournal
 
-
 FP = "a" * 64
 
 
