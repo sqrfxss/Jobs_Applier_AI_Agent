@@ -418,3 +418,91 @@ whereas headless Chrome returned HTTP 403 in local testing. The new BMAI
 workflow still needs a legitimate initial sign-in and independent verification
 of its authenticated AJAX endpoints, receipt controls and file mappings. It
 is not a verified fully automatic BMAI application.
+
+
+## AI-written, individually tailored motivation letter (Word)
+
+Every opportunity should have a **different, source-grounded motivation letter**.
+This is part of the standalone AIHawk academic extension, not a mail merge.
+It uses the applicant's **real searchable PDF CV**, verified applicant facts,
+institutional evidence excerpts, scientific fit and a position-specific goal.
+
+The Word document follows the privately provided CUAS sample: a prominent
+**MOTIVATION LETTER** heading and thin blue rule, italic programme/institution
+subtitle, formal salutation, five academic paragraphs, closing and signature.
+It is created as a NEW document, not a copy of a template with hidden objects:
+**Times New Roman throughout; A4; consistent margins and spacing; no watermark**.
+Applicant records and generated letters stay outside the public repository.
+
+Install the optional dependencies:
+
+    python -m pip install -e ".[academic-writing]"
+
+Place one private JSON brief beside a real PDF CV. This is a synthetic example:
+
+    {
+      "applicant_name": "Example Applicant",
+      "institution": "Example University",
+      "programme": "Biomedical Modelling",
+      "degree": "PhD",
+      "cv_file": "academic-cv.pdf",
+      "official_source_hosts": ["uni.example.edu"],
+      "applicant_facts": [
+        "Thesis on instrumented walking",
+        "MATLAB/Python signal-processing experience"
+      ],
+      "programme_evidence": [{
+        "url": "https://uni.example.edu/programme",
+        "excerpt": "The programme emphasises collaborative biomedical modelling."
+      }],
+      "research_fit": [
+        "Independent cohort validation for physiological time-series models"
+      ],
+      "career_goal": "Methodologically sound computational biomedical research",
+      "forbidden_organizations": ["A different institution mentioned in an old letter"],
+      "min_words": 300,
+      "max_words": 450,
+      "application_method": "reviewed_document"
+    }
+
+The source excerpt must actually come from a current official university
+page. The code checks approved HTTPS hosts, but does NOT by itself establish
+whether a quoted excerpt is authentic, current or applicable.
+
+**Automatic writing using the OpenAI Responses API:**
+
+    # Privately configure OPENAI_API_KEY and OPENAI_MODEL.
+    aihawk-academic motivation-letter .\position-brief.json .\Motivation_Letter.docx
+
+The OpenAI API requires credentials and may be billed separately from ChatGPT.
+The model must be selected by the user; the software does not invent a model
+name. The private CV and programme information are sent to the model only
+when this generation command is explicitly invoked. Responses are requested
+as structured JSON with storage disabled (store=False). Credentials are not
+saved in the DOCX, review log or Git repository.
+
+**Or draft the five paragraphs in ChatGPT, review them, and export without
+an API request:**
+
+    aihawk-academic motivation-letter .\position-brief.json .\Motivation_Letter.docx --draft-json .\reviewed-paragraphs.json
+
+The reviewed JSON has a single key named paragraphs containing exactly five
+full prose strings. It must live alongside the private brief and CV.
+This mode does not claim to have contacted a model automatically.
+
+Checks reject wrong institutional source hosts, external CV paths,
+unapproved numerals, another university's name, empty or templated prose,
+watermark/AI branding, excessive length and accidental file overwrites.
+A separate private review JSON stores checksums, the word count, and
+DRAFT_REQUIRES_APPLICANT_APPROVAL. It never reports university submission.
+
+Some universities, including BMAI according to its official FAQ, request the
+motivation directly in the application portal text field. In that case the
+Word file is for review and consistent presentation; the source-checked text
+must be entered only into the verified portal field, not blindly uploaded.
+
+Even after automated checks, an LLM may produce unsupported qualitative
+claims. The applicant must verify research experience, programme content,
+supervisor fit, dates and publications. A one-page layout should be rendered
+in Word/LibreOffice for visual QA; DOCX structure tests alone do not guarantee
+pagination in every installed office suite.
