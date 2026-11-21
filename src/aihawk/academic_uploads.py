@@ -189,14 +189,33 @@ def upload_one(page: Any, context: Any, plan: UploadPlan, mapping: UploadMapping
         raise PortalPreparationError("A different file is selected; refusing to overwrite it.")
     guard = UploadNetworkGuard(page, mapping, plan.hosts)
     chooser_events: list[Any] = []
+    successful_upload_responses: list[int] = []
+    rejected_upload_responses: list[int] = []
 
     def on_chooser(chooser: Any) -> None:
         chooser_events.append(chooser)
+
+    def on_response(response: Any) -> None:
+        """Bind an acknowledged response to the exact approved upload request."""
+        request = response.request
+        url = urlsplit(response.url)
+        if (
+            request.method.upper() == "POST"
+            and request.resource_type in ("xhr", "fetch")
+            and url.scheme == "https"
+            and url.hostname == urlsplit(page.url).hostname
+            and url.path == mapping.upload_endpoint_path
+        ):
+            if 200 <= response.status < 300:
+                successful_upload_responses.append(response.status)
+            else:
+                rejected_upload_responses.append(response.status)
 
     # Important: onchange JavaScript can initiate requests as soon as the
     # file is selected, before anyone clicks the Upload control.
     # Install restrictions BEFORE set_input_files, not afterwards.
     page.on("filechooser", on_chooser)
+    page.on("response", on_response)
     context.route("**/*", guard)
     try:
         if not button.is_visible():
@@ -228,26 +247,37 @@ def upload_one(page: Any, context: Any, plan: UploadPlan, mapping: UploadMapping
             raise PortalPreparationError("Unexpected operating-system file chooser opened.")
         _verify_file(path, digest)
         _require_page(page, plan, mapping)
-        if receipt_present(container, mapping, path.name):
-            # The portal auto-uploaded on onchange and produced a real receipt.
-            return "uploaded"
-        if control.evaluate("(e) => [...e.files].map(f => f.name)") != [path.name]:
-            raise PortalPreparationError("Browser file-selection readback failed.")
-        if not button.is_visible():
-            raise PortalPreparationError("Upload button is not visible; expand its approved section first.")
-        button.click(timeout=5_000)
+        if control.count() == 1:
+            selected = control.evaluate("(e) => [...e.files].map(f => f.name)")
+            if selected and selected != [path.name]:
+                raise PortalPreparationError("Browser file-selection readback failed.")
+        # A site may perform its AJAX upload on the file-input change event.
+        # Never click the separate Upload button if a request already started:
+        # that could send the document twice.
+        if guard.allowed == 0 and not receipt_present(container, mapping, path.name):
+            if not button.is_visible():
+                raise PortalPreparationError("Upload button is not visible; expand its approved section first.")
+            button.click(timeout=5_000)
         end = time.monotonic() + timeout_ms / 1000
         while time.monotonic() < end:
+            _require_page(page, plan, mapping)
             if chooser_events:
                 raise PortalPreparationError("Unexpected operating-system file chooser opened.")
-            if receipt_present(container, mapping, path.name):
-                _require_page(page, plan, mapping)
+            if rejected_upload_responses:
+                raise PortalPreparationError("The university upload endpoint reported an unsuccessful HTTP status.")
+            if guard.allowed > 1:
+                raise PortalPreparationError("Multiple upload POSTs were attempted; server result needs manual review.")
+            if receipt_present(container, mapping, path.name) and successful_upload_responses:
                 return "uploaded"
             page.wait_for_timeout(200)
-        raise PortalPreparationError("Upload result is unverified. Do not retry until server state is checked.")
+        raise PortalPreparationError(
+            "Upload requires BOTH a successful response from the reviewed endpoint "
+            "AND a matching portal receipt. Do not automatically retry."
+        )
     finally:
         context.unroute("**/*", guard)
         page.remove_listener("filechooser", on_chooser)
+        page.remove_listener("response", on_response)
 
 
 def run_interactive_uploads(manifest: Path, *, prompt=input) -> int:
