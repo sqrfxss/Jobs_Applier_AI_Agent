@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from aihawk.academic_browser import PortalPreparationError
@@ -164,3 +166,18 @@ def test_terminal_execution_must_be_interactive(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "stdin", type("NoTTY", (), {"isatty": lambda self: False})())
     with pytest.raises(PortalPreparationError, match="interactive"):
         run_interactive_journey(tmp_path / "missing.json")
+
+
+def test_multistage_review_html_includes_every_stage_and_fingerprint(tmp_path):
+    from aihawk.academic_ops import main
+
+    manifest_path = tmp_path / "application.json"
+    output_path = tmp_path / "review.html"
+    manifest_path.write_text(json.dumps(manifest()), encoding="utf-8")
+    assert main(["preview", str(manifest_path), str(output_path)]) == 0
+    body = output_path.read_text(encoding="utf-8")
+    journey = journey_from_manifest(manifest(), manifest_dir=tmp_path)
+    assert journey.fingerprint() in body
+    assert "Personal details [admissions.uni.example.edu/apply]" in body
+    assert "Programme choice [admissions.uni.example.edu/apply/degree]" in body
+    assert "form-action 'none'" in body
