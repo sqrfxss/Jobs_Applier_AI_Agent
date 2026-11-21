@@ -35,3 +35,6 @@ academic-local/
 .aihawk-uploads-*.json
 .aihawk-uploads-*.json.tmp
 .aihawk-uploads.lock
+
+# Private motivation-writing review ledger
+.aihawk-motivation-batch.json
