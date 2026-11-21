@@ -355,14 +355,17 @@ once, then reused for each mapped file. For each step, the program:
    opens a Windows file chooser, even for hidden file inputs.
 4. Permits only the explicitly approved AJAX POST upload path while its
    dedicated Upload control is clicked.
-5. Requires a **server-provided file link plus a Remove control** as the
-   confirmation; otherwise the batch stops without retrying automatically.
-6. Writes an atomic private checkpoint under
-   `.aihawk-uploads-<fingerprint>.json` while holding an exclusive lock.
-   A crash or uncertain result is marked as needing verification; the program
-   never blindly retries an upload after restart.
-7. On later runs, queries the actual server receipt again before treating
-   any previously attempted or completed file as uploaded.
+5. Requires **both a successful HTTP response from the exact approved
+   upload endpoint and a matching file link plus Remove control** in the
+   expected portal container. A UI link alone does not prove an upload.
+6. Prevents duplicate uploads if an HTML file-input `change` event starts the
+   POST before the separate Upload button is clicked.
+7. Writes an atomic private checkpoint under
+   `.aihawk-uploads-<fingerprint>.json` with an OS-managed exclusive lock.
+   On process crash, the operating system releases the lock; an uncertain
+   upload remains unverified and is **never blindly retried**.
+8. On subsequent runs, rechecks the portal's exact file-list receipt before
+   treating any previous attempt as completed.
 
 The browser's saved profile contains authentication secrets and **must remain
 private**. Do not zip, publish, synchronize or commit the
@@ -376,3 +379,42 @@ Browser-route interception is a defense in depth, not a full JavaScript or
 WebSocket security boundary. A real university form adapter must be validated
 before running it against an authenticated portal; synthetic tests alone do
 not establish university compatibility.
+
+
+### Multiple documents in one upload field
+
+Some portals permit multiple files in a single degree/transcript section.
+An original-language certificate and a certified translation must never
+silently overwrite each other. Include both files in the reviewed
+`attachments` array. For the *second* file, the mapping may explicitly
+declare `"expected_existing_files": ["original.pdf"]`, referencing the
+already approved original. The code then requires exactly the approved prior
+receipt set and a corresponding Remove control for each file. A different
+existing document, unexpected extra link, missing original or altered
+attachment hash stops execution. The portal must expose a suitable
+reviewed input selector for adding another file; this is site-specific.
+
+### Historical, redacted form readiness audit
+
+An earlier university form capture can be checked offline without another
+browser connection:
+
+```powershell
+aihawk-academic audit-snapshot .\\private-uia-snapshot.txt .\\private-readiness.json --host admissions.example.edu
+```
+
+The output identifies previously empty marked-required text controls,
+unselected options requiring attention, and file inputs empty **at the
+time of capture**. It cannot determine current upload status or whether a
+referee was invited since the capture. Never treat it as a live application
+completion check. The command rejects unredacted input values.
+
+On the BMAI 2027 historical capture, the six starred referee identity/contact
+inputs were empty at capture; other required application fields and current
+referee status must be checked in the authenticated portal.
+
+A visible dedicated Playwright Chrome session reached the public BMAI portal,
+whereas headless Chrome returned HTTP 403 in local testing. The new BMAI
+workflow still needs a legitimate initial sign-in and independent verification
+of its authenticated AJAX endpoints, receipt controls and file mappings. It
+is not a verified fully automatic BMAI application.
