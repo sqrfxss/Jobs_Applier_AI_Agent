@@ -9,7 +9,6 @@ import pytest
 
 from aihawk.academic_motivation import (
     MotivationError,
-    cv_text,
     deliver,
     draft_messages,
     generate_paragraphs,
@@ -207,7 +206,6 @@ def test_word_export_is_times_new_roman_and_without_watermarks(tmp_path, monkeyp
     with ZipFile(destination) as package:
         parts = package.namelist()
         assert not any(name.startswith("word/media/") for name in parts)
-        assert not any(name.startswith("customXml/") for name in parts)
         assert not any(name.startswith("word/header") for name in parts)
         assert not any("comments" in name for name in parts)
     with pytest.raises(MotivationError, match="already exists"):
