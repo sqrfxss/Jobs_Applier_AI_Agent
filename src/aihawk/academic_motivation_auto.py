@@ -12,8 +12,9 @@ import json
 import re
 import shutil
 import unicodedata
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from aihawk.academic_motivation import MotivationError, deliver
 from aihawk.official_fetch import PageSnapshot, fetch_official_page
@@ -48,9 +49,14 @@ def _cv_facts(cv_path: Path) -> list[str]:
     keys = ("b.sc.", "m.sc.", "bachelor", "master", "research programmer", "thesis:", "neural network", "biomechanic", "data processing")
     facts = []
     for line in lines:
-        if any(key in line.casefold() for key in keys) and 20 <= len(line) <= 350 and line not in facts:
-            if "@" not in line and not re.search(r"\+?\d[\d\s-]{9,}", line):
-                facts.append(line)
+        if (
+            any(key in line.casefold() for key in keys)
+            and 20 <= len(line) <= 350
+            and line not in facts
+            and "@" not in line
+            and not re.search(r"\+?\d[\d\s-]{9,}", line)
+        ):
+            facts.append(line)
         if len(facts) >= 9:
             break
     if len(facts) < 2:
