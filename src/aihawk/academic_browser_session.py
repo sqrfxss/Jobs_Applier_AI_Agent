@@ -124,7 +124,7 @@ def run_interactive_session(manifest: Path, *, prompt=input) -> int:
             print("Sign in manually in this isolated university browser. Do not copy personal Chrome cookies.")
             prompt("Press Enter after finishing or canceling the login session: ")
             verified_portal_host(page.url, official_hosts)
-            print("University browser session closed; its separate profile is retained locally.")
+            print("Private browser closed. Persistent cookies may be retained; session-only login may expire.")
             return 0
         finally:
             context.close()
