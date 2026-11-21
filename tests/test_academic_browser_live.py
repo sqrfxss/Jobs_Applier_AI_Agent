@@ -506,3 +506,73 @@ def test_failed_ajax_response_cannot_confirm_upload_even_with_dom_link(tmp_path)
             upload_one(page, context, plan, plan.bindings[0], timeout_ms=1200)
         context.close()
         browser.close()
+
+
+def test_second_document_in_multifile_field_preserves_original(tmp_path):
+    from aihawk.academic_uploads import upload_one, upload_plan_from_manifest
+
+    sync_api = pytest.importorskip("playwright.sync_api")
+    (tmp_path / "original.pdf").write_bytes(b"%PDF-1.4 original test")
+    (tmp_path / "certified.pdf").write_bytes(b"%PDF-1.4 certified test")
+    url = "https://admissions.uni.example.edu/apply"
+    payload = {
+        "title": "Two documents, one academic upload field",
+        "official_application_url": url,
+        "official_hosts": ["uni.example.edu"],
+        "applicant_id": "synthetic",
+        "fields": {},
+        "attachments": ["original.pdf", "certified.pdf"],
+        "portal_uploads": [{
+            "field": "certified.pdf",
+            "input_selector": "#add-translation",
+            "upload_button_selector": "#upload-translation",
+            "container_selector": "#transcripts",
+            "receipt_selector": ".file a",
+            "remove_selector": "button.remove",
+            "expected_path": "/apply",
+            "upload_endpoint_path": "/file/ajax",
+            "expected_existing_files": ["original.pdf"],
+        }],
+    }
+    plan = upload_plan_from_manifest(payload, manifest_dir=tmp_path)
+    html = """<section id='transcripts'>
+      <div class='file'><a>original.pdf</a></div>
+      <button class='remove'>Remove</button>
+      <input id='add-translation' type='file' hidden>
+      <button id='upload-translation' type='button' onclick='sendFile()'>Upload</button>
+      </section>
+      <button id='final-submit' type='submit'>Submit application</button>
+      <script>async function sendFile(){
+        const file=document.querySelector('#add-translation').files[0];
+        const response=await fetch('/file/ajax',{method:'POST',body:'synthetic'});
+        if(response.ok){
+          let div=document.createElement('div');div.className='file';
+          let a=document.createElement('a');a.textContent=file.name;div.append(a);
+          document.querySelector('#transcripts').append(div);
+          let remove=document.createElement('button');remove.className='remove';
+          remove.textContent='Remove';document.querySelector('#transcripts').append(remove);
+        }
+      }</script>"""
+    with sync_api.sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        context = browser.new_context(service_workers="block")
+        requests = []
+        def route_handler(route):
+            requests.append(route.request.url)
+            if route.request.url == url:
+                route.fulfill(content_type="text/html", body=html)
+            elif route.request.url.endswith("/file/ajax"):
+                route.fulfill(status=200, content_type="application/json", body='{"ok":true}')
+            else:
+                route.fulfill(status=500, body="unexpected")
+        context.route("**/*", route_handler)
+        page = context.new_page()
+        page.goto(url)
+        assert upload_one(page, context, plan, plan.bindings[0]) == "uploaded"
+        assert page.locator(".file a").all_text_contents() == ["original.pdf", "certified.pdf"]
+        assert page.locator("button.remove").count() == 2
+        assert upload_one(page, context, plan, plan.bindings[0]) == "already_uploaded"
+        assert len([u for u in requests if u.endswith("/file/ajax")]) == 1
+        assert page.locator("#final-submit").count() == 1
+        context.close()
+        browser.close()
