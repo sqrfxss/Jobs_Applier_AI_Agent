@@ -93,6 +93,16 @@ def _matching_host(url: str, expected_host: str, hosts: tuple[str, ...]) -> bool
         return False
 
 
+def workflow_context(playwright: Any, *, manifest_dir: Path, persistent: bool) -> tuple[Any, Any | None]:
+    """Return (context, browser), using an isolated persistent profile on request."""
+    if persistent:
+        return launch_academic_context(playwright, manifest_dir=manifest_dir), None
+    from aihawk.academic_browser_launch import launch_operator_browser
+
+    browser = launch_operator_browser(playwright, headless=False)
+    return browser.new_context(service_workers="block", accept_downloads=False), browser
+
+
 def run_interactive_session(manifest: Path, *, prompt=input) -> int:
     """One-time manual sign-in using a profile isolated to this application."""
     if not sys.stdin.isatty():
