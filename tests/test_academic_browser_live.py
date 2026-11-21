@@ -128,3 +128,39 @@ def test_two_page_chromium_prepares_separate_fields_without_any_submit(tmp_path)
         assert page.locator("button[type='submit']").count() == 1
         context.close()
         browser.close()
+
+
+def test_hidden_file_input_directly_attached_without_native_file_chooser(tmp_path):
+    sync_api = pytest.importorskip("playwright.sync_api")
+    (tmp_path / "proof.pdf").write_bytes(b"%PDF-1.4 synthetic evidence")
+    url = "https://admissions.uni.example.edu/hidden-file"
+    manifest = {
+        "title": "No native picker test",
+        "official_application_url": url,
+        "official_hosts": ["uni.example.edu"],
+        "applicant_id": "synthetic",
+        "fields": {},
+        "attachments": ["proof.pdf"],
+        "portal_bindings": [{"field": "proof.pdf", "selector": "#hidden-upload", "kind": "upload"}],
+    }
+    plan = plan_from_manifest(manifest, manifest_dir=tmp_path)
+    html = (
+        "<input type='file' id='hidden-upload' style='display:none'>"
+        "<button type='submit' id='danger'>Submit application</button>"
+    )
+    with sync_api.sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(service_workers="block")
+        context.route(url, lambda route: route.fulfill(status=200, content_type="text/html", body=html))
+        page = context.new_page()
+        chooser_events = []
+        page.on("filechooser", lambda chooser: chooser_events.append(chooser))
+        page.goto(url)
+        assert prepare_fields(page, plan) == ("proof.pdf",)
+        assert page.locator("#hidden-upload").evaluate(
+            "(e) => Array.from(e.files).map(f => f.name)"
+        ) == ["proof.pdf"]
+        assert chooser_events == []
+        assert page.locator("#danger").count() == 1
+        context.close()
+        browser.close()
