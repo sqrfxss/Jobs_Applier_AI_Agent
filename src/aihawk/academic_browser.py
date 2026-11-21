@@ -130,8 +130,13 @@ def prepare_fields(page: Any, plan: FormPlan) -> tuple[str, ...]:
     for binding in plan.bindings:
         try:
             node = page.locator(binding.selector)
-            if node.count() != 1 or not node.is_visible() or not node.is_enabled():
-                raise PortalPreparationError(f"Missing, ambiguous or unavailable control: {binding.field}")
+            if node.count() != 1 or not node.is_enabled():
+                raise PortalPreparationError(f"Missing, ambiguous or disabled control: {binding.field}")
+            # Playwright can attach files to hidden <input type="file"> nodes
+            # directly, without opening the operating-system file chooser.
+            # All other field kinds must still be visible to the operator.
+            if binding.kind != "upload" and not node.is_visible():
+                raise PortalPreparationError(f"Control is not visible: {binding.field}")
             tag = str(node.evaluate("(element) => element.tagName.toLowerCase()")).lower()
             control_type = (node.get_attribute("type") or "text").lower()
             if binding.kind == "text":
