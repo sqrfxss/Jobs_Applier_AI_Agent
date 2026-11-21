@@ -1,4 +1,5 @@
 """Crash-safe upload journal: atomic state, stale lock refusal and no secret storage."""
+
 from __future__ import annotations
 
 import json
@@ -29,18 +30,16 @@ def test_journal_is_atomic_and_survives_restart(tmp_path):
 def test_prevents_parallel_upload_attempts(tmp_path):
     first = UploadJournal(tmp_path, FP)
     second = UploadJournal(tmp_path, FP)
-    with first:
-        with pytest.raises(PortalPreparationError, match="Another upload"):
-            with second:
-                pass
+    with first, pytest.raises(PortalPreparationError, match="Another upload"):
+        with second:
+            pass
     with second:
         second.record("proof.pdf", "unverified")
 
 
 def test_rejects_unreviewed_status(tmp_path):
-    with UploadJournal(tmp_path, FP) as journal:
-        with pytest.raises(PortalPreparationError, match="Invalid"):
-            journal.record("proof.pdf", "submitted")
+    with UploadJournal(tmp_path, FP) as journal, pytest.raises(PortalPreparationError, match="Invalid"):
+        journal.record("proof.pdf", "submitted")
 
 
 def test_rejects_writing_without_exclusive_lock(tmp_path):
