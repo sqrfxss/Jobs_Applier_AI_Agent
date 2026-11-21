@@ -120,12 +120,12 @@ def main(argv: list[str] | None = None) -> int:
     motivation.add_argument("--draft-json", type=Path, help="Optional reviewed model draft; otherwise use the configured OpenAI API.")
     motivation.add_argument("--model", help="OpenAI API model (or set OPENAI_MODEL).")
     motivation.add_argument("--overwrite", action="store_true", help="Replace an existing DOCX only when deliberately requested.")
-    motivation_batch = subs.add_parser(
-        "motivation-batch",
+    motivation_auto = subs.add_parser(
+        "motivation-auto",
         help="Generate individual, evidence-grounded draft DOCX letters from a private position queue.",
     )
-    motivation_batch.add_argument("queue", type=Path, help="Private JSON position queue with a locally stored CV.")
-    motivation_batch.add_argument("--model", help="OpenAI API model (or set OPENAI_MODEL).")
+    motivation_auto.add_argument("queue", type=Path, help="Private JSON position queue with a locally stored CV.")
+    motivation_auto.add_argument("--model", help="OpenAI API model (or set OPENAI_MODEL).")
     batch = subs.add_parser("motivation-batch-reviewed", help="Plan or explicitly generate separately reviewed letters for multiple positions.")
     batch.add_argument("queue", type=Path, help="Private queue JSON listing one brief per position.")
     batch.add_argument("--generate", action="store_true", help="Explicitly generate all reviewed letters; default only previews.")
@@ -151,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
             print("Private drafts created; applicant review required. No portal submission.")
         return 0
 
-    if args.action == "motivation-batch":
+    if args.action == "motivation-auto":
         from aihawk.academic_motivation_auto import process_queue
 
         report = process_queue(args.queue, model=args.model)
