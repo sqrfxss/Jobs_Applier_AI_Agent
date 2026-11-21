@@ -347,7 +347,12 @@ once, then reused for each mapped file. For each step, the program:
    dedicated Upload control is clicked.
 5. Requires a **server-provided file link plus a Remove control** as the
    confirmation; otherwise the batch stops without retrying automatically.
-6. On later runs, skips verified completed files instead of uploading twice.
+6. Writes an atomic private checkpoint under
+   `.aihawk-uploads-<fingerprint>.json` while holding an exclusive lock.
+   A crash or uncertain result is marked as needing verification; the program
+   never blindly retries an upload after restart.
+7. On later runs, queries the actual server receipt again before treating
+   any previously attempted or completed file as uploaded.
 
 The browser's saved profile contains authentication secrets and **must remain
 private**. Do not zip, publish, synchronize or commit the
