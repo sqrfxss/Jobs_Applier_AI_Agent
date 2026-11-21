@@ -180,27 +180,38 @@ def upload_one(page: Any, context: Any, plan: UploadPlan, mapping: UploadMapping
     existing_selected = control.evaluate("(e) => [...e.files].map(f => f.name)")
     if existing_selected and existing_selected != [path.name]:
         raise PortalPreparationError("A different file is selected; refusing to overwrite it.")
-    if not existing_selected:
-        control.set_input_files(str(path), timeout=5_000)
-    if control.evaluate("(e) => [...e.files].map(f => f.name)") != [path.name]:
-        raise PortalPreparationError("Browser file-selection readback failed.")
-    _verify_file(path, digest)
-    _require_page(page, plan, mapping)
     guard = UploadNetworkGuard(page, mapping, plan.hosts)
     chooser_events: list[Any] = []
+
     def on_chooser(chooser: Any) -> None:
         chooser_events.append(chooser)
+
+    # Important: onchange JavaScript can initiate requests as soon as the
+    # file is selected, before anyone clicks the Upload control.
+    # Install restrictions BEFORE set_input_files, not afterwards.
     page.on("filechooser", on_chooser)
     context.route("**/*", guard)
     try:
+        if not existing_selected:
+            control.set_input_files(str(path), timeout=5_000)
+        page.wait_for_timeout(250)
+        if chooser_events:
+            raise PortalPreparationError("Unexpected operating-system file chooser opened.")
+        _verify_file(path, digest)
+        _require_page(page, plan, mapping)
+        if receipt_present(container, mapping, path.name):
+            # The portal auto-uploaded on onchange and produced a real receipt.
+            return "uploaded"
+        if control.evaluate("(e) => [...e.files].map(f => f.name)") != [path.name]:
+            raise PortalPreparationError("Browser file-selection readback failed.")
         if not button.is_visible():
             raise PortalPreparationError("Upload button is not visible; expand its approved section first.")
         button.click(timeout=5_000)
         end = time.monotonic() + timeout_ms / 1000
         while time.monotonic() < end:
+            if chooser_events:
+                raise PortalPreparationError("Unexpected operating-system file chooser opened.")
             if receipt_present(container, mapping, path.name):
-                if chooser_events:
-                    raise PortalPreparationError("Unexpected file chooser opened.")
                 _require_page(page, plan, mapping)
                 return "uploaded"
             page.wait_for_timeout(200)
