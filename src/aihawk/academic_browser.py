@@ -206,7 +206,7 @@ class PreparationNetworkGuard:
             route.continue_()
 
 
-def run_interactive(manifest: Path, *, prompt=input) -> int:
+def run_interactive(manifest: Path, *, persistent: bool = False, prompt=input) -> int:
     """Open a visible browser and prepare the operator-mapped fields.
 
     The user alone logs in and eventually submits. The browser session is
@@ -226,13 +226,15 @@ def run_interactive(manifest: Path, *, prompt=input) -> int:
         raise PortalPreparationError("Install the optional dependency: pip install 'aihawk[academic-browser]'") from error
 
     with sync_playwright() as playwright:
-        from aihawk.academic_browser_launch import launch_operator_browser
+        from aihawk.academic_browser_session import official_session_page, workflow_context
 
-        browser = launch_operator_browser(playwright, headless=False)
-        context = browser.new_context(service_workers="block", accept_downloads=False)
-        page = context.new_page()
+        context, browser = workflow_context(playwright, manifest_dir=manifest.parent, persistent=persistent)
         try:
-            page.goto(plan.preview.opportunity_url, wait_until="domcontentloaded", timeout=45000)
+            if persistent:
+                page = official_session_page(context, url=plan.preview.opportunity_url, official_hosts=plan.hosts)
+            else:
+                page = context.new_page()
+                page.goto(plan.preview.opportunity_url, wait_until="domcontentloaded", timeout=45000)
             print("If needed, sign in to the university portal manually. No credentials are entered by AIHawk.")
             prompt("Press Enter after reaching the intended form, or Ctrl+C to cancel: ")
             verified_portal_host(page.url, plan.hosts)
@@ -254,4 +256,5 @@ def run_interactive(manifest: Path, *, prompt=input) -> int:
             return 0
         finally:
             context.close()
-            browser.close()
+            if browser is not None:
+                browser.close()
