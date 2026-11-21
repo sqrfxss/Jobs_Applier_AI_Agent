@@ -138,4 +138,4 @@ def test_cli_batch_handles_partial_errors_without_claiming_success(tmp_path, mon
     monkeypatch.setattr(auto, "process_queue", lambda *a, **kw: {
         "results": [{"status": "error"}, {"status": "drafted_review_required"}],
     })
-    assert main(["motivation-batch", str(tmp_path/"queue.json"), "--model", "test-model"]) == 1
+    assert main(["motivation-auto", str(tmp_path/"queue.json"), "--model", "test-model"]) == 1
