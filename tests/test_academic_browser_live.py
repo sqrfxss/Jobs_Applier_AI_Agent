@@ -241,13 +241,18 @@ def test_guarded_ajax_upload_receipt_and_idempotence_without_file_picker(tmp_pat
 
 
 def test_isolated_persistent_browser_keeps_only_its_synthetic_login(tmp_path):
+    import time
+
     from aihawk.academic_browser_session import launch_academic_context
 
     sync_api = pytest.importorskip("playwright.sync_api")
     fake_url = "https://admissions.uni.example.edu/apply"
     with sync_api.sync_playwright() as playwright:
         first = launch_academic_context(playwright, manifest_dir=tmp_path, headless=True)
-        first.add_cookies([{"name": "synthetic_session", "value": "test-only", "url": fake_url}])
+        first.add_cookies([{
+            "name": "synthetic_session", "value": "test-only",
+            "url": fake_url, "expires": int(time.time()) + 3600,
+        }])
         assert any(c["name"] == "synthetic_session" for c in first.cookies([fake_url]))
         first.close()
 
