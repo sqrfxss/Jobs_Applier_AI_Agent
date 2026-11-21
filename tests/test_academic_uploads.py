@@ -138,3 +138,34 @@ def test_upload_command_refuses_noninteractive_execution(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "stdin", type("NoTTY", (), {"isatty": lambda self: False})())
     with pytest.raises(PortalPreparationError, match="interactive"):
         run_interactive_uploads(tmp_path / "missing.json")
+
+
+def test_multiple_upload_receipts_have_matching_remove_controls(tmp_path):
+    mapping = build(tmp_path).bindings[0]
+    assert receipt_present(FakeContainer(["original.pdf", "proof.pdf"], 2), mapping, "proof.pdf")
+    assert not receipt_present(FakeContainer(["original.pdf", "proof.pdf"], 1), mapping, "proof.pdf")
+    assert not receipt_present(FakeContainer(["original.pdf", "proof.pdf"], 3), mapping, "proof.pdf")
+
+
+def test_prior_files_require_explicit_manifest_approval(tmp_path):
+    data = manifest()
+    data["portal_uploads"][0]["expected_existing_files"] = ["original.pdf"]
+    (tmp_path / "proof.pdf").write_bytes(b"%PDF-1.4")
+    with pytest.raises(PortalPreparationError, match="Previously approved"):
+        upload_plan_from_manifest(data, manifest_dir=tmp_path)
+
+    data["attachments"].append("original.pdf")
+    (tmp_path / "original.pdf").write_bytes(b"%PDF-1.4 original")
+    plan = upload_plan_from_manifest(data, manifest_dir=tmp_path)
+    assert plan.bindings[0].expected_existing_files == ("original.pdf",)
+
+
+@pytest.mark.parametrize("prior", [
+    ["../unsafe.pdf"], ["other.pdf", "other.pdf"], ["proof.pdf"],
+])
+def test_prior_file_names_reject_traversal_duplicates_and_self_reference(tmp_path, prior):
+    data = manifest()
+    data["portal_uploads"][0]["expected_existing_files"] = prior
+    (tmp_path / "proof.pdf").write_bytes(b"%PDF-1.4")
+    with pytest.raises(PortalPreparationError):
+        upload_plan_from_manifest(data, manifest_dir=tmp_path)
