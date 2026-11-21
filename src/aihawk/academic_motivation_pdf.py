@@ -28,10 +28,7 @@ def _word_export(src: Path, dst: Path) -> None:
         word = DispatchEx("Word.Application")
         word.Visible = False
         word.DisplayAlerts = 0
-        try:
-            word.AutomationSecurity = 3
-        except Exception:
-            pass
+        word.AutomationSecurity = 3
         document = word.Documents.Open(str(src), ReadOnly=True, AddToRecentFiles=False)
         document.Repaginate()
         if document.ComputeStatistics(2) != 1:
@@ -39,15 +36,9 @@ def _word_export(src: Path, dst: Path) -> None:
         document.ExportAsFixedFormat(str(dst), 17)
     finally:
         if document is not None:
-            try:
-                document.Close(0)
-            except Exception:
-                pass
+            document.Close(0)
         if word is not None:
-            try:
-                word.Quit(0)
-            except Exception:
-                pass
+            word.Quit(0)
 
 
 def _libreoffice_export(src: Path, dst: Path) -> None:
