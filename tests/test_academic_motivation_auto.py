@@ -139,3 +139,83 @@ def test_cli_batch_handles_partial_errors_without_claiming_success(tmp_path, mon
         "results": [{"status": "error"}, {"status": "drafted_review_required"}],
     })
     assert main(["motivation-auto", str(tmp_path/"queue.json"), "--model", "test-model"]) == 1
+
+
+def test_pdf_only_position_exports_verified_format_without_rewriting_docx(tmp_path, monkeypatch):
+    import aihawk.academic_motivation_auto as auto
+    import aihawk.academic_motivation_pdf as pdfmod
+
+    monkeypatch.setattr(auto, "_cv_facts", lambda path: [
+        "MSc in sports biomechanics with measurement models",
+        "MATLAB and Python research programming",
+    ])
+    source = queue(tmp_path)
+    values = json.loads(source.read_text(encoding="utf-8"))
+    values["positions"] = [values["positions"][0]]
+    values["positions"][0]["portal_allowed_extensions"] = ["pdf", "doc", "txt"]
+    source.write_text(json.dumps(values), encoding="utf-8")
+    drafts = []
+    exports = []
+
+    def fake_deliver(brief, output, **kwargs):
+        drafts.append(output)
+        output.write_bytes(b"test DOCX stand-in")
+        return output
+
+    def fake_export(docx, pdf, *, expected_name, expected_institution):
+        exports.append((docx, pdf, expected_name, expected_institution))
+        pdf.write_bytes(b"%PDF-1.4 verified fake")
+        return pdf
+
+    monkeypatch.setattr(auto, "deliver", fake_deliver)
+    monkeypatch.setattr(pdfmod, "export_letter_pdf", fake_export)
+    first = process_queue(source, fetcher=official)
+    assert first["results"][0]["status"] == "drafted_review_required"
+    assert first["results"][0]["path"].endswith(".pdf")
+    assert len(drafts) == 1
+    assert len(exports) == 1
+    assert drafts[0].exists()
+    assert exports[0][2:] == ("Example Researcher", "University A")
+    second = process_queue(source, fetcher=official)
+    assert second["results"][0]["status"] == "already_drafted_review_required"
+    assert len(drafts) == len(exports) == 1
+
+
+def test_pdf_only_batch_recovers_from_existing_docx_without_rewriting(tmp_path, monkeypatch):
+    import aihawk.academic_motivation_auto as auto
+    import aihawk.academic_motivation_pdf as pdfmod
+    monkeypatch.setattr(auto, "_cv_facts", lambda path: [
+        "MSc scientific computing", "Doctoral research in medical imaging",
+    ])
+    q = queue(tmp_path)
+    data = json.loads(q.read_text(encoding="utf-8"))
+    data["positions"] = [data["positions"][0]]
+    data["positions"][0]["portal_allowed_extensions"] = [".pdf"]
+    q.write_text(json.dumps(data), encoding="utf-8")
+    _, word = prepare_position(
+        tmp_path, "Example Researcher", tmp_path/"synthetic.pdf",
+        data["positions"][0], fetcher=official,
+    )
+    word.write_bytes(b"previously approved document")
+    monkeypatch.setattr(auto, "deliver", lambda *a, **kw: pytest.fail("Should never regenerate existing Word"))
+    monkeypatch.setattr(
+        pdfmod, "export_letter_pdf",
+        lambda docx, out, **kw: out.write_bytes(b"%PDF-1.4 synthetic approved"),
+    )
+    outcome = process_queue(q, fetcher=official)
+    assert outcome["results"][0]["status"] == "pdf_exported_review_required"
+    assert word.read_bytes() == b"previously approved document"
+
+
+@pytest.mark.parametrize("allowed", [[], ["exe"], ["pdf;exe"], ["../pdf"], ["docx", 42]])
+def test_unsupported_or_malformed_portal_formats_rejected_before_writing(tmp_path, monkeypatch, allowed):
+    import aihawk.academic_motivation_auto as auto
+    monkeypatch.setattr(auto, "_cv_facts", lambda path: ["Research programmer", "Thesis in biomechanics"])
+    monkeypatch.setattr(auto, "deliver", lambda *a, **kw: pytest.fail("Do not draft for unsupported upload rules"))
+    q = queue(tmp_path)
+    data = json.loads(q.read_text())
+    data["positions"] = [data["positions"][0]]
+    data["positions"][0]["portal_allowed_extensions"] = allowed
+    q.write_text(json.dumps(data))
+    result = process_queue(q, fetcher=official)
+    assert result["results"][0]["status"] == "error"
