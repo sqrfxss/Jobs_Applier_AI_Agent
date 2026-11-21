@@ -46,7 +46,7 @@ def test_manifest_fingerprint_changes_with_attachment_bytes(tmp_path):
     a = build(tmp_path)
     digest = a.fingerprint()
     (tmp_path / "proof.pdf").write_bytes(b"%PDF-1.4 a DIFFERENT file")
-    b = build(tmp_path)
+    b = upload_plan_from_manifest(manifest(), manifest_dir=tmp_path)
     assert b.fingerprint() != digest
 
 
