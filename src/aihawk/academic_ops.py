@@ -98,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     autofill_stages.add_argument("manifest", type=Path)
     autofill_stages.add_argument("--persistent", action="store_true", help="Reuse the private academic browser login.")
-    session = subs.add_parser("session", help="One-time login in a dedicated, persistent university-only browser.")
+    session = subs.add_parser("session", help="Open private academic browser; session-only logins may expire when it closes.")
     session.add_argument("manifest", type=Path)
     uploads = subs.add_parser("upload-reviewed", help="Upload reviewed files in one persistent browser, checking server receipts.")
     uploads.add_argument("manifest", type=Path)
