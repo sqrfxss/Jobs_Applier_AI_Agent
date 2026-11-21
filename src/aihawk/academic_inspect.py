@@ -90,7 +90,7 @@ def export_inventory(path: Path, inventory: dict[str, Any]) -> None:
     path.write_text(json.dumps(inventory, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def run_interactive_inspection(manifest: Path, output: Path, *, prompt=input) -> int:
+def run_interactive_inspection(manifest: Path, output: Path, *, persistent: bool = False, prompt=input) -> int:
     import sys
 
     if not sys.stdin.isatty():
@@ -106,13 +106,15 @@ def run_interactive_inspection(manifest: Path, output: Path, *, prompt=input) ->
     except ImportError as error:
         raise PortalPreparationError("Install the optional Playwright browser dependency.") from error
     with sync_playwright() as p:
-        from aihawk.academic_browser_launch import launch_operator_browser
+        from aihawk.academic_browser_session import official_session_page, workflow_context
 
-        browser = launch_operator_browser(p, headless=False)
-        context = browser.new_context(service_workers="block", accept_downloads=False)
-        page = context.new_page()
+        context, browser = workflow_context(p, manifest_dir=manifest.parent, persistent=persistent)
         try:
-            page.goto(preview.opportunity_url, wait_until="domcontentloaded", timeout=45000)
+            if persistent:
+                page = official_session_page(context, url=preview.opportunity_url, official_hosts=hosts)
+            else:
+                page = context.new_page()
+                page.goto(preview.opportunity_url, wait_until="domcontentloaded", timeout=45000)
             prompt("Log in manually if necessary, navigate to the form, then press Enter: ")
             inventory = inspect_controls(page, official_hosts=hosts)
             export_inventory(output, inventory)
@@ -120,4 +122,5 @@ def run_interactive_inspection(manifest: Path, output: Path, *, prompt=input) ->
             return 0
         finally:
             context.close()
-            browser.close()
+            if browser is not None:
+                browser.close()
