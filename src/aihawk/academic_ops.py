@@ -106,6 +106,10 @@ def main(argv: list[str] | None = None) -> int:
     inspect.add_argument("manifest", type=Path)
     inspect.add_argument("output", type=Path)
     inspect.add_argument("--persistent", action="store_true", help="Reuse the private academic browser login.")
+    audit = subs.add_parser("audit-snapshot", help="Audit a previously saved redacted form inventory offline; no portal access.")
+    audit.add_argument("snapshot", type=Path)
+    audit.add_argument("output", type=Path)
+    audit.add_argument("--host", required=True, help="Previously verified exact institutional host.")
     for name in ("track-prepared", "track-submitted", "track-status"):
         track = subs.add_parser(name, help="Record or inspect local redacted application status.")
         track.add_argument("manifest", type=Path)
@@ -113,6 +117,19 @@ def main(argv: list[str] | None = None) -> int:
         if name == "track-submitted":
             track.add_argument("--proof", type=Path, help="Local confirmation evidence file (optional).")
     args = parser.parse_args(argv)
+
+    if args.action == "audit-snapshot":
+        from aihawk.academic_readiness import write_readiness
+
+        report = write_readiness(args.snapshot, args.output, expected_host=args.host)
+        counts = report["counts"]
+        print(
+            "Historical redacted snapshot only; not current admission status. "
+            f"Required blanks: {counts['required_blank']}; "
+            f"unresolved selectors: {counts['unset_selects']}; "
+            f"empty file inputs at capture: {counts['empty_file_inputs_at_capture']}."
+        )
+        return 0
 
     if args.action == "session":
         from aihawk.academic_browser_session import run_interactive_session
