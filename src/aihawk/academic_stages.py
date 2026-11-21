@@ -121,7 +121,7 @@ def prepare_stage(page: Any, stage: PortalStage, *, hosts: tuple[str, ...]) -> t
     return result
 
 
-def run_interactive_journey(manifest: Path, *, prompt=input) -> int:
+def run_interactive_journey(manifest: Path, *, persistent: bool = False, prompt=input) -> int:
     """Human navigates stages; program only prepares verified fields."""
     if not sys.stdin.isatty():
         raise PortalPreparationError("Multi-step preparation requires an interactive local terminal.")
@@ -136,13 +136,15 @@ def run_interactive_journey(manifest: Path, *, prompt=input) -> int:
         raise PortalPreparationError("Install the optional Playwright browser dependency.") from error
 
     with sync_playwright() as playwright:
-        from aihawk.academic_browser_launch import launch_operator_browser
+        from aihawk.academic_browser_session import official_session_page, workflow_context
 
-        browser = launch_operator_browser(playwright, headless=False)
-        context = browser.new_context(service_workers="block", accept_downloads=False)
-        page = context.new_page()
+        context, browser = workflow_context(playwright, manifest_dir=manifest.parent, persistent=persistent)
         try:
-            page.goto(journey.starting_url, wait_until="domcontentloaded", timeout=45000)
+            if persistent:
+                page = official_session_page(context, url=journey.starting_url, official_hosts=journey.hosts)
+            else:
+                page = context.new_page()
+                page.goto(journey.starting_url, wait_until="domcontentloaded", timeout=45000)
             print("Sign in and advance between stages yourself. The software NEVER clicks Next or Submit.")
             for index, stage in enumerate(journey.stages, start=1):
                 print(f"Stage {index}/{len(journey.stages)}: {stage.name} "
@@ -167,4 +169,5 @@ def run_interactive_journey(manifest: Path, *, prompt=input) -> int:
             return 0
         finally:
             context.close()
-            browser.close()
+            if browser is not None:
+                browser.close()
