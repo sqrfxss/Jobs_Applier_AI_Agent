@@ -12,3 +12,29 @@ build/
 aihawk.yaml
 cv.md
 answers.yaml
+
+# Private university application files and local evidence.
+academic-private/
+application.json
+application-review.html
+academic-input.json
+academic-output.json
+academic-private.sqlite*
+*.academic.sqlite*
+private-field-inventory.json
+programme.json
+programme-review.json
+homepage-evidence.json
+maastricht-homepage.json
+academic-local/
+
+# Authentication-bearing isolated academic browser state
+.aihawk-academic-session/
+
+# Private academic upload checkpoints and cross-process lock metadata
+.aihawk-uploads-*.json
+.aihawk-uploads-*.json.tmp
+.aihawk-uploads.lock
+
+# Private motivation-writing review ledger
+.aihawk-motivation-batch.json

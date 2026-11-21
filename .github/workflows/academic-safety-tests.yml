@@ -1,0 +1,73 @@
+name: academic-safety-tests
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'src/aihawk/academic*.py'
+      - 'src/aihawk/official_fetch.py'
+      - 'tests/test_academic*.py'
+      - 'tests/test_official_fetch.py'
+      - 'pyproject.toml'
+      - '.github/workflows/academic-safety-tests.yml'
+  pull_request:
+    paths:
+      - 'src/aihawk/academic*.py'
+      - 'src/aihawk/official_fetch.py'
+      - 'tests/test_academic*.py'
+      - 'tests/test_official_fetch.py'
+      - '.github/workflows/academic-safety-tests.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  academic-standalone:
+    name: Academic safeguards / ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install standalone test requirements
+        run: python -m pip install --disable-pip-version-check pytest python-docx pypdf
+      - name: Compile academic extension
+        run: python -m compileall -q src/aihawk
+      - name: Stage isolated tests (avoid unrelated upstream conftest dependencies)
+        run: |
+          python -c "import os, pathlib, shutil; files=('test_academic.py','test_academic_cli.py','test_academic_workflow.py','test_academic_review.py','test_academic_portal.py','test_academic_ops.py','test_official_fetch.py','test_academic_programs.py','test_academic_program_cli.py','test_academic_browser.py','test_academic_inspect.py','test_academic_stages.py','test_academic_browser_launch.py','test_academic_browser_session.py','test_academic_upload_journal.py','test_academic_readiness.py','test_academic_motivation.py','test_academic_motivation_batch.py','test_academic_motivation_auto.py','test_academic_motivation_pdf.py','test_academic_uploads.py','test_academic_tracker.py','test_academic_tracker_cli.py'); dest=pathlib.Path(os.environ['RUNNER_TEMP'])/'aihawk_academic_tests'; dest.mkdir(exist_ok=True); [shutil.copy2(pathlib.Path('tests')/name,dest/name) for name in files]"
+      - name: Run standalone security and academic tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python -m pytest -q "${{ runner.temp }}/aihawk_academic_tests"
+
+  academic-browser-integration:
+    name: Synthetic academic form / Chromium
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install browser test dependencies
+        run: python -m pip install --disable-pip-version-check pytest playwright
+      - name: Install Chromium with supported system libraries
+        run: python -m playwright install --with-deps chromium
+      - name: Stage isolated browser test
+        run: |
+          python -c "import os, pathlib, shutil; dest=pathlib.Path(os.environ['RUNNER_TEMP'])/'aihawk_academic_browser'; dest.mkdir(exist_ok=True); shutil.copy2('tests/test_academic_browser_live.py',dest/'test_academic_browser_live.py')"
+      - name: Exercise real Chromium against intercepted synthetic form
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python -m pytest -q "${{ runner.temp }}/aihawk_academic_browser" -m browser
