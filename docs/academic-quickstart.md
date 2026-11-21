@@ -135,7 +135,65 @@ does not intercept. This implementation is not an isolation sandbox for
 malicious pages and is not a guarantee that every real university site can be
 automated. Only operate on verified, trusted university application pages.
 
-## 6. Standalone status and duplicate-prevention registry
+## 6. Multi-page university portals — manual stage transitions
+
+Use a separate `portal_stages` array when the portal has more than one
+screen. Do not also set `portal_bindings`. Example manifest fields below
+are **synthetic**; the host, exact URL paths and selectors must be inspected
+and verified on the intended university site before use:
+
+```json
+{
+  "title": "Example MSc multi-page application",
+  "official_application_url": "https://admissions.example.edu/apply",
+  "official_hosts": ["example.edu"],
+  "applicant_id": "local-private-reference",
+  "fields": {
+    "legal_name": "Replace with reviewed name",
+    "programme": "Example MSc"
+  },
+  "attachments": [],
+  "portal_stages": [
+    {
+      "name": "Identity",
+      "expected_host": "admissions.example.edu",
+      "expected_path": "/apply",
+      "bindings": [
+        {"field": "legal_name", "selector": "#legal-name", "kind": "text"}
+      ]
+    },
+    {
+      "name": "Programme",
+      "expected_host": "admissions.example.edu",
+      "expected_path": "/apply/programme",
+      "bindings": [
+        {"field": "programme", "selector": "#programme", "kind": "select"}
+      ]
+    }
+  ]
+}
+```
+
+```powershell
+aihawk-academic preview .\\application.json .\\application-review.html
+aihawk-academic autofill-stages .\\application.json
+```
+
+The static preview lists the field mappings and expected routes of **all**
+stages and carries one fingerprint for the entire plan. The terminal requires
+a distinct typed approval for each stage. At each page, the program checks
+the current HTTPS host and exact path before filling, without clicking
+`Next`, `Save` or `Submit`. **You** must navigate between stages
+manually. Changing any mapping or stage route invalidates the review digest.
+Query parameters are ignored for the stage-path comparison, but no URL
+parameters are ever copied into the report.
+
+This workflow is for operator-controlled preparation only; validation
+requirements, CAPTCHA, institutional consent and actual submission remain
+under the operator's control. It is not verified on live authenticated
+university portals.
+
+## 7. Standalone status and duplicate-prevention registry
 
 Record an application in the private local SQLite registry after preparation,
 and inspect its state without contacting any university:
@@ -163,7 +221,7 @@ The registry database `academic-private.sqlite` is stored beside the
 manifest. Never place this directory in public version control. For
 additional control use `--db` with a private absolute filename.
 
-## 7. Eligibility assessment
+## 8. Eligibility assessment
 
 `python -m aihawk.academic_cli evaluate input.json result.json` evaluates
 explicitly supplied programme facts without performing network access.
@@ -177,7 +235,7 @@ deposits, tuition and spouse-related visa checks. Fees that are not provided
 are unknown, never automatically zero. Immigration decisions are not inferred
 from academic admission rules.
 
-## 8. Development and verification
+## 9. Development and verification
 
 The academic extension includes isolated pytest tests for:
 - Conservative eligibility and test-format matching
