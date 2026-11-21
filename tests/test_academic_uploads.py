@@ -80,7 +80,7 @@ class Route:
         self.request = SimpleNamespace(method=method, url=url, resource_type=resource_type)
         self.record = []
 
-    def continue_(self):
+    def fallback(self):
         self.record.append("allow")
 
     def abort(self):
