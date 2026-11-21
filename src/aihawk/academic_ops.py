@@ -125,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     motivation_batch.add_argument("queue", type=Path, help="Private JSON position queue with a locally stored CV.")
     motivation_batch.add_argument("--model", help="OpenAI API model (or set OPENAI_MODEL).")
-    batch = subs.add_parser("motivation-batch", help="Plan or explicitly generate separately reviewed letters for multiple positions.")
+    batch = subs.add_parser("motivation-batch-reviewed", help="Plan or explicitly generate separately reviewed letters for multiple positions.")
     batch.add_argument("queue", type=Path, help="Private queue JSON listing one brief per position.")
     batch.add_argument("--generate", action="store_true", help="Explicitly generate all reviewed letters; default only previews.")
     batch.add_argument("--model", help="OpenAI model for API-backed drafts.")
@@ -138,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
             track.add_argument("--proof", type=Path, help="Local confirmation evidence file (optional).")
     args = parser.parse_args(argv)
 
-    if args.action == "motivation-batch":
+    if args.action == "motivation-batch-reviewed":
         from aihawk.academic_motivation_batch import run_batch
 
         results = run_batch(args.queue, generate=args.generate, model=args.model, overwrite=args.overwrite)
