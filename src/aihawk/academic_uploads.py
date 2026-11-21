@@ -234,20 +234,38 @@ def run_interactive_uploads(manifest: Path, *, prompt=input) -> int:
         from playwright.sync_api import sync_playwright
     except ImportError as error:
         raise PortalPreparationError("Install Playwright to upload with no native file pickers.") from error
-    with sync_playwright() as playwright:
+    from aihawk.academic_upload_journal import UploadJournal
+
+    with UploadJournal(manifest.parent, plan.fingerprint()) as journal, sync_playwright() as playwright:
         context = launch_academic_context(playwright, manifest_dir=manifest.parent)
         try:
             page = official_session_page(context, url=plan.application_url, official_hosts=plan.hosts)
-            prompt("If the university requires sign-in, complete it once, navigate to the upload form, and press Enter: ")
+            prompt("If needed, sign in once in this private browser, navigate to the form and press Enter: ")
             for step in plan.bindings:
                 print("Upload: " + step.field)
+                previous = journal.last_status(step.field)
+                if previous:
+                    # A local checkpoint is never enough to claim server receipt.
+                    box = page.locator(step.container_selector)
+                    filename = plan.file_for(step.field)[0].name
+                    if box.count() == 1 and receipt_present(box, step, filename):
+                        journal.record(step.field, "already_uploaded")
+                        print("Rechecked existing university receipt: " + step.field)
+                        continue
+                    raise PortalPreparationError(
+                        "A previous upload attempt has no visible university receipt. "
+                        "Stop before retrying or overwriting anything."
+                    )
+                journal.record(step.field, "attempting")
                 try:
                     status = upload_one(page, context, plan, step)
-                except PortalPreparationError:
-                    print("Stopped. The upload is NOT confirmed; check the university receipt before retrying.")
+                except Exception:
+                    journal.record(step.field, "unverified")
+                    print("Stopped. Upload is unverified; check the university receipt before retrying.")
                     raise
+                journal.record(step.field, status)
                 print("University receipt status: " + status)
-            print("All mapped uploads have been confirmed in their individual university fields.")
+            print("All mapped uploads were checked against individual university receipts.")
             print("No final application, referee invitation or consent was submitted.")
             prompt("Press Enter when finished reviewing the university browser: ")
             return 0
