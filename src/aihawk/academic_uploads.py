@@ -139,9 +139,15 @@ def receipt_present(container: Any, mapping: UploadMapping, filename: str) -> bo
     receipts = container.locator(mapping.receipt_selector)
     links = [name.strip() for name in receipts.all_text_contents() if name.strip()]
     remove = container.locator(mapping.remove_selector).count()
-    # Multi-file fields expose one file link and one Remove control per upload.
-    # Never count a selected file without its portal-side removal control.
-    return links.count(filename) == 1 and remove == len(links) and remove > 0
+    expected = {*mapping.expected_existing_files, filename}
+    # Each listed document must be approved. Require exactly one matching
+    # receipt and one portal Remove control per file, never an extra link.
+    return (
+        links.count(filename) == 1
+        and len(links) == len(expected)
+        and set(links) == expected
+        and remove == len(links)
+    )
 
 
 class UploadNetworkGuard:
@@ -182,6 +188,9 @@ def upload_one(page: Any, context: Any, plan: UploadPlan, mapping: UploadMapping
     _require_page(page, plan, mapping)
     path, digest = plan.file_for(mapping.field)
     _verify_file(path, digest)
+    for prior_name in mapping.expected_existing_files:
+        prior_path, prior_digest = plan.file_for(prior_name)
+        _verify_file(prior_path, prior_digest)
     container = page.locator(mapping.container_selector)
     if container.count() != 1:
         raise PortalPreparationError("File upload container is missing or ambiguous.")
