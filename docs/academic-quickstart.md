@@ -92,6 +92,22 @@ py -m pip install -e ".[academic-browser]"
 py -m playwright install chromium
 ```
 
+**File uploads without native picker dialogs:** when a reviewed mapping uses
+`kind: "upload"`, Playwright calls `locator.set_input_files(path)` directly.
+This works even for hidden HTML file inputs, without invoking Windows
+`Open` dialogs. The code checks exact attachment hashes and confirms the
+selected filename. It does not click a university's separate `Upload`
+button or claim that the server has received the file: that remains a
+site-specific action and needs separate verification.
+
+**Important browser-session boundary:** A normal Chrome window that was
+already logged into a university is not automatically controllable by
+Playwright. If that window was not launched with an authorized debugging
+connection, the tool cannot reuse its session and must use a separate
+Playwright-managed browser context. Do not silently fall back to automated
+native file-dialog clicking, repeatedly open pickers, copy Chrome credentials
+or export authentication cookies to bridge sessions.
+
 On a Windows computer with Google Chrome or Microsoft Edge already installed,
 `aihawk-academic autofill`, `autofill-stages`, and `inspect` can now
 fall back automatically to that local browser when Playwright's bundled
