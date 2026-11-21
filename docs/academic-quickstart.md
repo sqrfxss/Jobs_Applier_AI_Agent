@@ -294,11 +294,21 @@ folder**. It never reads or copies cookies from the user's personal Chrome,
 uses no remote debugging access to personal tabs and never opens native file
 picker dialogs. The session is reused on subsequent runs until it expires.
 
-The operator signs in once, using a normal visible Chrome or Edge window:
+The dedicated browser can be used for inspection and preparation with the same
+private profile:
 
 ```powershell
-aihawk-academic session .\\application.json
+aihawk-academic inspect .\\application.json .\\private-field-inventory.json --persistent
+aihawk-academic autofill .\\application.json --persistent
+aihawk-academic autofill-stages .\\multi-stage-application.json --persistent
 ```
+
+The `aihawk-academic session .\\application.json` command opens this
+private browser for a login check, but **session-only cookies may be discarded
+when Chrome closes**. Therefore the safer option is to authenticate in the
+visible browser during the **same `upload-reviewed` command** that performs
+the uploads. Persistent cookies may survive a restart; the code never claims
+that every university's login remains valid indefinitely.
 
 Review a complete file-to-control mapping in the private manifest before
 running the upload workflow. This is a **synthetic example**, not verified
