@@ -60,13 +60,11 @@ def audit_redacted_snapshot(source: str, *, expected_host: str) -> dict[str, Any
         number = int(item["line"])
         if kind == "Hyperlink" and label.startswith("Hide "):
             section = label.removeprefix("Hide ").strip()
-        if kind == "Edit":
-            if item["state"] == "[BLANK]":
-                record = {"line": number, "label": label, "section": section}
-                (blank_required if label.rstrip().endswith("*") else blank_other).append(record)
-        if kind == "Hyperlink" and label == "- None -" and number - prev_number <= 4:
-            if prev_label in INTERESTING_UNSET_FIELDS:
-                unset.append({"line": number, "label": prev_label, "section": section})
+        if kind == "Edit" and item["state"] == "[BLANK]":
+            record = {"line": number, "label": label, "section": section}
+            (blank_required if label.rstrip().endswith("*") else blank_other).append(record)
+        if kind == "Hyperlink" and label == "- None -" and number - prev_number <= 4 and prev_label in INTERESTING_UNSET_FIELDS:
+            unset.append({"line": number, "label": prev_label, "section": section})
         if kind == "Button" and label == "Choose File: No file chosen":
             pending_file_inputs.append({"line": number, "section": section})
         if kind == "Text" and label:
