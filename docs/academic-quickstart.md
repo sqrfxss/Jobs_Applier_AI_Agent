@@ -284,3 +284,80 @@ proof, third-party sign-on, file uploads, required consents and response
 confirmation. Each demands a tested, site-specific browser adapter with
 enforced human control before any automated submission can be enabled.
 No automatic applications have been sent by this extension.
+
+
+## Dedicated persistent login and server-verified uploads (experimental)
+
+This new workflow avoids repeatedly attaching to a personal Chrome session.
+It keeps authentication in a **separate profile inside the private application
+folder**. It never reads or copies cookies from the user's personal Chrome,
+uses no remote debugging access to personal tabs and never opens native file
+picker dialogs. The session is reused on subsequent runs until it expires.
+
+The operator signs in once, using a normal visible Chrome or Edge window:
+
+```powershell
+aihawk-academic session .\\application.json
+```
+
+Review a complete file-to-control mapping in the private manifest before
+running the upload workflow. This is a **synthetic example**, not verified
+Max Planck selectors or endpoints:
+
+```json
+{
+  "title": "Synthetic university programme",
+  "official_application_url": "https://admissions.example.edu/apply",
+  "official_hosts": ["example.edu"],
+  "applicant_id": "private-case",
+  "fields": {},
+  "attachments": ["proof.pdf"],
+  "portal_uploads": [
+    {
+      "field": "proof.pdf",
+      "input_selector": "#proof",
+      "upload_button_selector": "#proof-upload",
+      "container_selector": "#proof-container",
+      "receipt_selector": ".file a",
+      "remove_selector": "button.remove",
+      "expected_path": "/apply",
+      "upload_endpoint_path": "/file/ajax"
+    }
+  ]
+}
+```
+
+The file must physically exist within the private manifest directory.
+Both the file hash and all portal selectors are included in the review
+fingerprint. The university's exact file-upload endpoint must be inspected
+before configuration; **never guess it**.
+
+```powershell
+aihawk-academic upload-reviewed .\\application.json
+```
+
+One typed approval covers the reviewed batch. The browser session is opened
+once, then reused for each mapped file. For each step, the program:
+
+1. Checks the exact official hostname, path and specific file container.
+2. Refuses existing conflicting files and changed attachment hashes.
+3. Selects the attachment using Playwright `set_input_files`, which never
+   opens a Windows file chooser, even for hidden file inputs.
+4. Permits only the explicitly approved AJAX POST upload path while its
+   dedicated Upload control is clicked.
+5. Requires a **server-provided file link plus a Remove control** as the
+   confirmation; otherwise the batch stops without retrying automatically.
+6. On later runs, skips verified completed files instead of uploading twice.
+
+The browser's saved profile contains authentication secrets and **must remain
+private**. Do not zip, publish, synchronize or commit the
+`.aihawk-academic-session` directory. It cannot be placed in a Git checkout.
+The local machine owner may revoke the site session by signing out and
+deleting this dedicated private profile when the browser is closed.
+
+This implementation deliberately does **not** automate institutional consent,
+referee requests, CAPTCHA/SSO verification, final submission or payment.
+Browser-route interception is a defense in depth, not a full JavaScript or
+WebSocket security boundary. A real university form adapter must be validated
+before running it against an authenticated portal; synthetic tests alone do
+not establish university compatibility.
