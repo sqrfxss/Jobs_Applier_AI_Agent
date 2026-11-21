@@ -10,7 +10,7 @@ import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Self
 
 from aihawk.academic_browser import PortalPreparationError
 
@@ -38,7 +38,7 @@ class UploadJournal:
                 raise PortalPreparationError("Invalid upload journal records.")
             self._records = records
 
-    def __enter__(self) -> UploadJournal:
+    def __enter__(self) -> Self:
         try:
             descriptor = os.open(str(self.lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         except FileExistsError as error:
@@ -48,7 +48,7 @@ class UploadJournal:
         self._locked = True
         return self
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         if self._locked:
             self.lock_path.unlink(missing_ok=True)
             self._locked = False
