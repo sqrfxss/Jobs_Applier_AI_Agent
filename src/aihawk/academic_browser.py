@@ -142,13 +142,21 @@ def prepare_fields(page: Any, plan: FormPlan) -> tuple[str, ...]:
             if binding.kind == "text":
                 if not (tag == "textarea" or (tag == "input" and control_type in TEXT_INPUT_TYPES)):
                     raise PortalPreparationError(f"Unsafe control type for: {binding.field}")
-                node.fill(fields[binding.field], timeout=5000)
+                existing = node.input_value(timeout=5000)
+                if existing and existing != fields[binding.field]:
+                    raise PortalPreparationError(f"Existing entered value differs from review: {binding.field}")
+                if existing != fields[binding.field]:
+                    node.fill(fields[binding.field], timeout=5000)
                 if node.input_value(timeout=5000) != fields[binding.field]:
                     raise PortalPreparationError(f"Browser readback did not match: {binding.field}")
             elif binding.kind == "select":
                 if tag != "select":
                     raise PortalPreparationError(f"Expected an HTML select: {binding.field}")
-                node.select_option(value=fields[binding.field], timeout=5000)
+                existing = node.input_value(timeout=5000)
+                if existing and existing != fields[binding.field]:
+                    raise PortalPreparationError(f"Existing selection differs from review: {binding.field}")
+                if existing != fields[binding.field]:
+                    node.select_option(value=fields[binding.field], timeout=5000)
                 if node.input_value(timeout=5000) != fields[binding.field]:
                     raise PortalPreparationError(f"Browser selection did not match: {binding.field}")
             else:
