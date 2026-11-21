@@ -146,7 +146,7 @@ class UploadNetworkGuard:
                 allowed = False
         if allowed:
             self.allowed += 1
-            route.continue_()
+            route.fallback()
         else:
             self.blocked += 1
             route.abort()
