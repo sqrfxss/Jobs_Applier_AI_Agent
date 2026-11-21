@@ -506,3 +506,35 @@ claims. The applicant must verify research experience, programme content,
 supervisor fit, dates and publications. A one-page layout should be rendered
 in Word/LibreOffice for visual QA; DOCX structure tests alone do not guarantee
 pagination in every installed office suite.
+
+
+### Writing a separate motivation letter for every queued position
+
+A private batch file can describe several independently reviewed positions,
+each with its own programme sources and CV-based research fit. This is not a
+mass-produced letter with institution names substituted.
+
+Example private queue:
+
+    {
+      "positions": [
+        {"brief": "bmai-brief.json", "output": "BMAI_Motivation.docx"},
+        {"brief": "other-programme-brief.json", "output": "Other_Motivation.docx"}
+      ]
+    }
+
+Read-only readiness preview (no API calls, writes or attachments submitted):
+
+    aihawk-academic motivation-batch .\private-writing-queue.json
+
+Generate sequentially after checking each position's official evidence.
+This may send the private CV to the selected OpenAI API model and incur charges:
+
+    aihawk-academic motivation-batch .\private-writing-queue.json --generate
+
+For a ChatGPT-reviewed draft without an API call, one queue item may instead
+provide "draft_json": "bmai-reviewed-paragraphs.json". Each generated letter
+has an individual DOCX and review ledger; batch progress is tracked privately
+in .aihawk-motivation-batch.json. An individual failure stops the queue and
+marks that entry for review without claiming any university submission.
+Every document remains an applicant-reviewed draft, not a sent application.
