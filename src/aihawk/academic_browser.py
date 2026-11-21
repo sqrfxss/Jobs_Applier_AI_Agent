@@ -213,7 +213,9 @@ def run_interactive(manifest: Path, *, prompt=input) -> int:
         raise PortalPreparationError("Install the optional dependency: pip install 'aihawk[academic-browser]'") from error
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=False)
+        from aihawk.academic_browser_launch import launch_operator_browser
+
+        browser = launch_operator_browser(playwright, headless=False)
         context = browser.new_context(service_workers="block", accept_downloads=False)
         page = context.new_page()
         try:
