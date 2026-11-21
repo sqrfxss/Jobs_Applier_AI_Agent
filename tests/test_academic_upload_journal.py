@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 
 import pytest
 
@@ -22,7 +24,7 @@ def test_journal_is_atomic_and_survives_restart(tmp_path):
         assert persisted["plan_fingerprint"] == FP
         assert persisted["records"]["proof.pdf"]["status"] == "uploaded"
         assert "applicant_id" not in persisted
-    assert not journal.lock_path.exists()
+    assert journal.lock_path.exists()  # stable inode prevents Unix lock-file split brain
     assert UploadJournal(tmp_path, FP).last_status("proof.pdf") == "uploaded"
 
 
@@ -58,3 +60,22 @@ def test_fingerprint_is_scoped_to_each_reviewed_batch(tmp_path):
     other = UploadJournal(tmp_path, "b" * 64)
     assert other.filename != journal.filename
     assert other.last_status("proof.pdf") is None
+
+
+def test_lock_is_released_after_abrupt_process_exit(tmp_path):
+    # A genuine crashed process cannot execute UploadJournal.__exit__.
+    # OS locks must be released without someone manually deleting lock files.
+    code = (
+        "import os,sys\n"
+        "from pathlib import Path\n"
+        "from aihawk.academic_upload_journal import UploadJournal\n"
+        "with UploadJournal(Path(sys.argv[1]), 'a'*64) as journal:\n"
+        "    journal.record('proof.pdf', 'attempting')\n"
+        "    os._exit(9)\n"
+    )
+    run = subprocess.run([sys.executable, "-c", code, str(tmp_path)], check=False)
+    assert run.returncode == 9
+    with UploadJournal(tmp_path, FP) as recovered:
+        assert recovered.last_status("proof.pdf") == "attempting"
+        recovered.record("proof.pdf", "unverified")
+    assert UploadJournal(tmp_path, FP).last_status("proof.pdf") == "unverified"
