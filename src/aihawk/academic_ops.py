@@ -110,6 +110,15 @@ def main(argv: list[str] | None = None) -> int:
     audit.add_argument("snapshot", type=Path)
     audit.add_argument("output", type=Path)
     audit.add_argument("--host", required=True, help="Previously verified exact institutional host.")
+    motivation = subs.add_parser(
+        "motivation-letter",
+        help="Generate a personalised, source-reviewed motivation letter in Times New Roman Word format.",
+    )
+    motivation.add_argument("brief", type=Path, help="Private JSON brief with CV and programme evidence.")
+    motivation.add_argument("output", type=Path, help="Private DOCX output path.")
+    motivation.add_argument("--draft-json", type=Path, help="Optional reviewed model draft; otherwise use the configured OpenAI API.")
+    motivation.add_argument("--model", help="OpenAI API model (or set OPENAI_MODEL).")
+    motivation.add_argument("--overwrite", action="store_true", help="Replace an existing DOCX only when deliberately requested.")
     for name in ("track-prepared", "track-submitted", "track-status"):
         track = subs.add_parser(name, help="Record or inspect local redacted application status.")
         track.add_argument("manifest", type=Path)
@@ -117,6 +126,17 @@ def main(argv: list[str] | None = None) -> int:
         if name == "track-submitted":
             track.add_argument("--proof", type=Path, help="Local confirmation evidence file (optional).")
     args = parser.parse_args(argv)
+
+    if args.action == "motivation-letter":
+        from aihawk.academic_motivation import deliver
+
+        result = deliver(
+            args.brief, args.output, draft_path=args.draft_json,
+            model=args.model, overwrite=args.overwrite,
+        )
+        print("Private Word motivation-letter draft: " + str(result))
+        print("Times New Roman; no watermark; applicant review required. Nothing submitted.")
+        return 0
 
     if args.action == "audit-snapshot":
         from aihawk.academic_readiness import write_readiness
