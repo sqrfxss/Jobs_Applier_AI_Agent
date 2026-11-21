@@ -92,6 +92,10 @@ def main(argv: list[str] | None = None) -> int:
     handoff.add_argument("manifest", type=Path)
     autofill = subs.add_parser("autofill", help="Prepare explicitly mapped controls in a visible browser; user submits manually.")
     autofill.add_argument("manifest", type=Path)
+    autofill_stages = subs.add_parser(
+        "autofill-stages", help="Prepare individually reviewed stages; human navigates between pages and submits."
+    )
+    autofill_stages.add_argument("manifest", type=Path)
     inspect = subs.add_parser("inspect", help="Read form labels and control types without accessing applicant values.")
     inspect.add_argument("manifest", type=Path)
     inspect.add_argument("output", type=Path)
@@ -107,6 +111,11 @@ def main(argv: list[str] | None = None) -> int:
         from aihawk.academic_inspect import run_interactive_inspection
 
         return run_interactive_inspection(args.manifest, args.output)
+
+    if args.action == "autofill-stages":
+        from aihawk.academic_stages import run_interactive_journey
+
+        return run_interactive_journey(args.manifest)
 
     if args.action == "autofill":
         from aihawk.academic_browser import run_interactive
@@ -155,7 +164,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.action == "preview":
         binding_summary: tuple[tuple[str, str, str], ...] = ()
         binding_fingerprint: str | None = None
-        if "portal_bindings" in manifest:
+        if "portal_stages" in manifest:
+            from aihawk.academic_stages import journey_from_manifest
+
+            journey = journey_from_manifest(manifest, manifest_dir=args.manifest.parent)
+            binding_summary = tuple(
+                (f"{stage.name} [{stage.expected_host}{stage.expected_path}]: {entry.field}", entry.selector, entry.kind)
+                for stage in journey.stages for entry in stage.form.bindings
+            )
+            binding_fingerprint = journey.fingerprint()
+        elif "portal_bindings" in manifest:
             from aihawk.academic_browser import plan_from_manifest
 
             plan = plan_from_manifest(manifest, manifest_dir=args.manifest.parent)
