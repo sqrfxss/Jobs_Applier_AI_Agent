@@ -30,9 +30,8 @@ def test_journal_is_atomic_and_survives_restart(tmp_path):
 def test_prevents_parallel_upload_attempts(tmp_path):
     first = UploadJournal(tmp_path, FP)
     second = UploadJournal(tmp_path, FP)
-    with first, pytest.raises(PortalPreparationError, match="Another upload"):
-        with second:
-            pass
+    with first, pytest.raises(PortalPreparationError, match="Another upload"), second:
+        pass
     with second:
         second.record("proof.pdf", "unverified")
 
