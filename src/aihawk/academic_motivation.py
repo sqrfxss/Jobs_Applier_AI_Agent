@@ -385,17 +385,19 @@ def render_docx(brief: Brief, paragraphs: list[str], destination: Path, *, overw
     # XML or header shapes. Fail closed if a renderer unexpectedly adds them.
     from zipfile import ZipFile
 
+    unsafe_part = False
     with ZipFile(tmp) as package:
         names = package.namelist()
-        if any(name.startswith("word/media/") or name.startswith("customXml/") for name in names):
-            tmp.unlink(missing_ok=True)
-            raise MotivationError("Word document unexpectedly contains a media/custom XML part.")
+        # A blank python-docx file contains harmless customXml bibliography
+        # metadata; it is not a watermark. Reject actual media/header shapes.
+        unsafe_part = any(name.startswith("word/media/") for name in names)
         for name in names:
             if name.startswith("word/header") and name.endswith(".xml"):
                 xml = package.read(name)
-                if b"pict" in xml or b"drawing" in xml or b"textpath" in xml:
-                    tmp.unlink(missing_ok=True)
-                    raise MotivationError("Word document contains a header graphic or watermark.")
+                unsafe_part = unsafe_part or any(token in xml for token in (b"w:pict", b"w:drawing", b"v:textpath"))
+    if unsafe_part:
+        tmp.unlink(missing_ok=True)
+        raise MotivationError("Word output unexpectedly contains a graphic or watermark.")
     tmp.replace(destination)
     return destination
 
