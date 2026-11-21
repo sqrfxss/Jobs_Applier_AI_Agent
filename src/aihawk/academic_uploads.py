@@ -18,8 +18,8 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from aihawk.academic_browser import PortalPreparationError, verified_portal_host
-from aihawk.academic_ops import _hash_file, application_from_manifest
 from aihawk.academic_browser_session import launch_academic_context, official_session_page
+from aihawk.academic_ops import _hash_file, application_from_manifest
 
 
 @dataclass(frozen=True)
