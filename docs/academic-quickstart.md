@@ -92,6 +92,13 @@ py -m pip install -e ".[academic-browser]"
 py -m playwright install chromium
 ```
 
+On a Windows computer with Google Chrome or Microsoft Edge already installed,
+`aihawk-academic autofill`, `autofill-stages`, and `inspect` can now
+fall back automatically to that local browser when Playwright's bundled
+Chromium is missing. A separate browser download is not mandatory in that
+case. This fallback uses a new Playwright-controlled browser context, not
+your normal signed-in Chrome profile. Browser login is still manual.
+
 Use:
 
 ```powershell
