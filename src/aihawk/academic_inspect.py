@@ -1,6 +1,6 @@
 """Read-only inventory of candidate academic portal form controls.
 
-The inspector never reads field values, cookies, hidden inputs or passwords,
+The inspector never reads field values, cookies, hidden input values or passwords,
 never supplies field values and never activates form submission controls.
 All page text is untrusted and must be reviewed as data.
 """
