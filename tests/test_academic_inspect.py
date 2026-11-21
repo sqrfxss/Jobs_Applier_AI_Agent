@@ -87,3 +87,31 @@ def test_hidden_upload_is_reported_without_capturing_its_value():
     assert result["controls"][0]["hidden_upload"] is True
     assert result["values_captured"] is False
     assert "element.value" not in INSPECT_EXPRESSION
+
+
+def test_file_accept_and_multiple_attributes_are_inspected_without_reading_values():
+    page = ReadOnlyPage([{
+        "type": "file",
+        "name": "motivation_letter",
+        "label": "Letter of Motivation",
+        "selector": "#motivation",
+        "unique": True,
+        "accept": ".pdf,.doc,.txt",
+        "multiple": False,
+    }, {
+        "type": "file",
+        "name": "transcripts",
+        "label": "Transcripts",
+        "selector": "#transcripts",
+        "unique": True,
+        "accept": ".pdf,.jpg,.png",
+        "multiple": True,
+    }])
+    report = inspect_controls(page, official_hosts=("uni.example.edu",))
+    fields = report["controls"]
+    assert fields[0]["accept_attribute_untrusted"] == ".pdf,.doc,.txt"
+    assert fields[0]["multiple_files"] is False
+    assert fields[1]["multiple_files"] is True
+    assert fields[1]["accept_attribute_untrusted"] == ".pdf,.jpg,.png"
+    assert report["values_captured"] is False
+    assert "element.value" not in INSPECT_EXPRESSION
