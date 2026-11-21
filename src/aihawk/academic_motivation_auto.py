@@ -184,7 +184,7 @@ def _required_portal_format(position: dict[str, Any]) -> str:
     if allowed is None:
         return "docx"  # No site-specific conversion is authorized or implied.
     if not isinstance(allowed, list) or not allowed or not all(
-        isinstance(ext, str) and re.fullmatch(r"\\.?[a-zA-Z0-9]{1,12}", ext) for ext in allowed
+        isinstance(ext, str) and re.fullmatch(r"\.?[a-zA-Z0-9]{1,12}", ext) for ext in allowed
     ):
         raise MotivationError("Invalid official portal file-extension list.")
     normalized = {ext.casefold().lstrip(".") for ext in allowed}
