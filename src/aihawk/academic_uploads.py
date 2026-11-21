@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 import time
 from dataclasses import dataclass
@@ -34,6 +35,8 @@ class UploadMapping:
     upload_endpoint_path: str
     expand_selector: str | None = None
     expected_existing_files: tuple[str, ...] = ()
+    allowed_extensions: tuple[str, ...] = ()
+    receipt_filename: str | None = None
 
     def __post_init__(self) -> None:
         if not self.field or not self.expected_path.startswith("/") or not self.upload_endpoint_path.startswith("/"):
@@ -65,6 +68,25 @@ class UploadMapping:
         if len(set(names)) != len(names) or self.field in names:
             raise PortalPreparationError("Duplicate or self-referential prior upload approval.")
         object.__setattr__(self, "expected_existing_files", tuple(names))
+        # Portal file-type rules must be captured from the actual upload field:
+        # e.g. the BMAI motivation control permits PDF and DOC, but not DOCX.
+        allowed = self.allowed_extensions
+        if not isinstance(allowed, (tuple, list)) or len(allowed) > 30:
+            raise PortalPreparationError("Invalid reviewed upload extension allowlist.")
+        normalized = tuple(ext.casefold().lstrip(".") for ext in allowed if isinstance(ext, str))
+        if len(normalized) != len(allowed) or len(set(normalized)) != len(normalized) or any(
+            not re.fullmatch(r"[a-z0-9]{1,12}", ext) for ext in normalized
+        ):
+            raise PortalPreparationError("Invalid reviewed upload extension allowlist.")
+        object.__setattr__(self, "allowed_extensions", normalized)
+        receipt = self.receipt_filename
+        if receipt is not None:
+            if (not isinstance(receipt, str) or not receipt.strip() or receipt != receipt.strip()
+                or "/" in receipt or "\\" in receipt or len(receipt) > 180
+                or any(ord(char) < 32 for char in receipt)):
+                raise PortalPreparationError("Invalid exact server receipt filename.")
+            if Path(receipt).suffix.casefold() != Path(self.field).suffix.casefold():
+                raise PortalPreparationError("Approved receipt has a different document extension.")
 
 
 @dataclass(frozen=True)
@@ -106,6 +128,11 @@ def upload_plan_from_manifest(data: dict[str, Any], *, manifest_dir: Path) -> Up
     for mapping in bindings:
         if any(name not in files for name in mapping.expected_existing_files):
             raise PortalPreparationError("Previously approved upload files must be in the reviewed manifest.")
+        extension = Path(mapping.field).suffix.casefold().lstrip(".")
+        if mapping.allowed_extensions and extension not in mapping.allowed_extensions:
+            raise PortalPreparationError(
+                "This document's extension is not accepted by the reviewed university upload field."
+            )
     root = manifest_dir.resolve(strict=True)
     attachments = tuple(
         (name, (root / name).resolve(), digest)
@@ -117,13 +144,21 @@ def upload_plan_from_manifest(data: dict[str, Any], *, manifest_dir: Path) -> Up
     return UploadPlan(title, preview.opportunity_url, hosts, bindings, attachments)
 
 
-def _verify_file(path: Path, expected_digest: str) -> None:
+def _verify_file(path: Path, expected_digest: str, *, allowed_extensions: tuple[str, ...] = ()) -> None:
     try:
         actual = _hash_file(path)
     except OSError as error:
         raise PortalPreparationError("Approved file is missing or cannot be opened.") from error
     if actual != expected_digest:
         raise PortalPreparationError("Approved file changed after review. Stop and approve a new plan.")
+    if allowed_extensions:
+        if path.suffix.casefold().lstrip(".") not in allowed_extensions:
+            raise PortalPreparationError("The chosen file type is not allowed in this university field.")
+        # A DOCX renamed to .pdf is not a valid PDF. Check the actual bytes.
+        if path.suffix.casefold() == ".pdf":
+            with path.open("rb") as file:
+                if file.read(5) != b"%PDF-":
+                    raise PortalPreparationError("Uploaded .pdf does not contain a PDF file signature.")
 
 
 def _require_page(page: Any, plan: UploadPlan, mapping: UploadMapping) -> None:
@@ -139,11 +174,12 @@ def receipt_present(container: Any, mapping: UploadMapping, filename: str) -> bo
     receipts = container.locator(mapping.receipt_selector)
     links = [name.strip() for name in receipts.all_text_contents() if name.strip()]
     remove = container.locator(mapping.remove_selector).count()
-    expected = {*mapping.expected_existing_files, filename}
+    expected_name = mapping.receipt_filename or filename
+    expected = {*mapping.expected_existing_files, expected_name}
     # Each listed document must be approved. Require exactly one matching
     # receipt and one portal Remove control per file, never an extra link.
     return (
-        links.count(filename) == 1
+        links.count(expected_name) == 1
         and len(links) == len(expected)
         and set(links) == expected
         and remove == len(links)
@@ -187,7 +223,7 @@ def upload_one(page: Any, context: Any, plan: UploadPlan, mapping: UploadMapping
     """Upload at most once. Never retry uncertain transfers or invoke file pickers."""
     _require_page(page, plan, mapping)
     path, digest = plan.file_for(mapping.field)
-    _verify_file(path, digest)
+    _verify_file(path, digest, allowed_extensions=mapping.allowed_extensions)
     for prior_name in mapping.expected_existing_files:
         prior_path, prior_digest = plan.file_for(prior_name)
         _verify_file(prior_path, prior_digest)
@@ -274,7 +310,7 @@ def upload_one(page: Any, context: Any, plan: UploadPlan, mapping: UploadMapping
         page.wait_for_timeout(250)
         if chooser_events:
             raise PortalPreparationError("Unexpected operating-system file chooser opened.")
-        _verify_file(path, digest)
+        _verify_file(path, digest, allowed_extensions=mapping.allowed_extensions)
         _require_page(page, plan, mapping)
         if control.count() == 1:
             selected = control.evaluate("(e) => [...e.files].map(f => f.name)")
