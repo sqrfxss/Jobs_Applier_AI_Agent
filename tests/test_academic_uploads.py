@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -141,10 +142,12 @@ def test_upload_command_refuses_noninteractive_execution(tmp_path, monkeypatch):
 
 
 def test_multiple_upload_receipts_have_matching_remove_controls(tmp_path):
-    mapping = build(tmp_path).bindings[0]
+    mapping = replace(build(tmp_path).bindings[0], expected_existing_files=("original.pdf",))
     assert receipt_present(FakeContainer(["original.pdf", "proof.pdf"], 2), mapping, "proof.pdf")
     assert not receipt_present(FakeContainer(["original.pdf", "proof.pdf"], 1), mapping, "proof.pdf")
     assert not receipt_present(FakeContainer(["original.pdf", "proof.pdf"], 3), mapping, "proof.pdf")
+    assert not receipt_present(FakeContainer(["proof.pdf"], 1), mapping, "proof.pdf")
+    assert not receipt_present(FakeContainer(["original.pdf", "proof.pdf", "unreviewed.pdf"], 3), mapping, "proof.pdf")
 
 
 def test_prior_files_require_explicit_manifest_approval(tmp_path):
