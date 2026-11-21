@@ -1,6 +1,7 @@
 """Academic operator workflow: capture evidence, preview, and manual portal handoff.
 
-No automatic filling, form submission, login, or third-party AI calls.
+University submission and logins are never automated. Optional motivation
+writing uses a configured OpenAI API only after a user-triggered CLI command.
 All official domains are configured explicitly by the operator.
 """
 
