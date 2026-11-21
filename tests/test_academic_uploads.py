@@ -1,7 +1,6 @@
 """File-upload safety and idempotence checks; no university contacted."""
 from __future__ import annotations
 
-import json
 import sys
 from types import SimpleNamespace
 
