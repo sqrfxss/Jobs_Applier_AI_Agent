@@ -141,7 +141,7 @@ def receipt_present(container: Any, mapping: UploadMapping, filename: str) -> bo
     remove = container.locator(mapping.remove_selector).count()
     # Multi-file fields expose one file link and one Remove control per upload.
     # Never count a selected file without its portal-side removal control.
-    return links.count(filename) == 1 and remove >= len(links) and remove > 0
+    return links.count(filename) == 1 and remove == len(links) and remove > 0
 
 
 class UploadNetworkGuard:
