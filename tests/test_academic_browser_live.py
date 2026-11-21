@@ -164,3 +164,77 @@ def test_hidden_file_input_directly_attached_without_native_file_chooser(tmp_pat
         assert page.locator("#danger").count() == 1
         context.close()
         browser.close()
+
+
+def test_guarded_ajax_upload_receipt_and_idempotence_without_file_picker(tmp_path):
+    import json
+
+    from aihawk.academic_uploads import upload_one, upload_plan_from_manifest
+
+    sync_api = pytest.importorskip("playwright.sync_api")
+    (tmp_path / "proof.pdf").write_bytes(b"%PDF-1.4 synthetic academic document")
+    url = "https://admissions.uni.example.edu/apply"
+    data = {
+        "title": "Synthetic AJAX institution",
+        "official_application_url": url,
+        "official_hosts": ["uni.example.edu"],
+        "applicant_id": "synthetic-user",
+        "fields": {},
+        "attachments": ["proof.pdf"],
+        "portal_uploads": [{
+            "field": "proof.pdf",
+            "input_selector": "#proof",
+            "upload_button_selector": "#proof-upload",
+            "container_selector": "#proof-container",
+            "receipt_selector": ".file a",
+            "remove_selector": "button.remove",
+            "expected_path": "/apply",
+            "upload_endpoint_path": "/file/ajax",
+        }],
+    }
+    plan = upload_plan_from_manifest(data, manifest_dir=tmp_path)
+    html = """<html><body><section id="proof-container">
+      <input id="proof" type="file" style="display:none">
+      <button id="proof-upload" type="button" onclick="uploadProof()">Upload</button>
+      <div class="file"></div></section>
+      <button id="final" type="submit" onclick="document.body.dataset.final='sent'">Submit application</button>
+      <script>
+      async function uploadProof(){
+        const file=document.getElementById('proof').files[0];
+        const form=new FormData();form.append('file',file);
+        fetch('/submission',{method:'POST',body:'unexpected'}).catch(()=>{});
+        const response=await fetch('/file/ajax',{method:'POST',body:form});
+        if(response.ok){
+          document.querySelector('.file').innerHTML='<a>'+file.name+'</a>';
+          const remove=document.createElement('button');
+          remove.className='remove';remove.textContent='Remove';
+          document.querySelector('#proof-container').append(remove);
+        }
+      }
+      </script></body></html>"""
+    requests = []
+    with sync_api.sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        context = browser.new_context(service_workers="block")
+        def routes(route):
+            requests.append((route.request.method, route.request.url))
+            if route.request.url == url:
+                route.fulfill(status=200, content_type="text/html", body=html)
+            elif route.request.url == "https://admissions.uni.example.edu/file/ajax":
+                route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True}))
+            else:
+                route.fulfill(status=500, body="unexpected")
+        context.route("**/*", routes)
+        page = context.new_page()
+        chooser_events = []
+        page.on("filechooser", lambda chooser: chooser_events.append(chooser))
+        page.goto(url)
+        assert upload_one(page, context, plan, plan.bindings[0]) == "uploaded"
+        assert upload_one(page, context, plan, plan.bindings[0]) == "already_uploaded"
+        assert chooser_events == []
+        assert page.locator("#final").count() == 1
+        assert page.locator("body").get_attribute("data-final") is None
+        assert sum(u.endswith("/file/ajax") for _, u in requests) == 1
+        assert not any(u.endswith("/submission") for _, u in requests)
+        context.close()
+        browser.close()
