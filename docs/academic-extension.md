@@ -1,6 +1,6 @@
 # AIHawk academic workflow — verified development status
 
-Updated 2026-11-20. This fork contains a **standalone university
+Updated 2026-11-21. This fork contains a **standalone university
 application preparation workflow**. There is no cross-project integration and
 no integration with an external applicant database. The original AIHawk job
 application bot is separate and unchanged.
@@ -15,6 +15,8 @@ application bot is separate and unchanged.
 | File preparation | `academic_ops.py`, SHA-256 of actual attachments confined to a private folder | Does not put CV contents in GitHub |
 | Review | Escaped, standalone HTML with application values, portal selectors, form/selector fingerprint | User checks the preview and enters an exact approval challenge |
 | Form preparation | `academic_browser.py` with optional Playwright | Maps approved text/select/file inputs; never calls submit, click, JavaScript mutation, or model-driven browser tools |
+| Read-only portal inspection | `academic_inspect.py` | Extracts candidate labels/selectors without reading entered applicant values |
+| Multi-stage form preparation | `academic_stages.py`, `academic_ops.py autofill-stages` | Exact approved host/path and selector mapping for each stage; human navigates between stages and submits manually |
 | Network safeguard | All Playwright-routed HTTP requests aborted during the deterministic fill phase | Not a complete browser sandbox: pre-existing WebSockets and side effects of loaded scripts are not guaranteed blocked |
 | Final sending | User releases guarded session with a second typed challenge | **Only the user clicks the university's final Submit**; software does not submit |
 | Local status | `academic_tracker.py` and `academic_ops.py track-*` | User reports a submission; local proof hash is not proof that the university accepted it |
@@ -29,7 +31,8 @@ email addresses, browser profiles or receipt contents.
 ## Verified tests
 
 On the connected Windows computer, the isolated academic modules and tests
-passed **82 tests, 1 browser-only test deselected**, and Ruff reported
+passed **89 tests, 1 browser-only test deselected** on the earlier
+single-page implementation, and Ruff reported
 **All checks passed**. The local Python interpreter was 3.14.
 
 In GitHub Actions, the academic workflow successfully completed:
@@ -40,7 +43,14 @@ In GitHub Actions, the academic workflow successfully completed:
 - Real Chromium exercising a completely intercepted synthetic university
   form. No request to an actual university was made in that browser test.
 
-See [the successful workflow](https://github.com/sqrfxss/Jobs_Applier_AI_Agent/actions/runs/44719723498)
+The full original AIHawk suite and academic CI both passed on the prior
+baseline commit `4c503ac3`. Later CI on `e91957d1` passed the stage-planning
+checks and synthetic Chromium tests. The final cross-platform CI for the
+newest multi-stage commit has been queued and must be checked separately.
+The Windows test device is currently offline; no new local test result has
+been claimed for the multi-stage code.
+
+See [the prior full successful workflow](https://github.com/sqrfxss/Jobs_Applier_AI_Agent/actions/runs/44723376138)
 and [the standalone quickstart](academic-quickstart.md). A separate live
 public homepage fetch was performed against
 `https://www.maastrichtuniversity.nl/`; it confirmed retrieval and evidence
@@ -53,7 +63,9 @@ After installing the fork and its optional academic browser dependencies:
 ```powershell
 aihawk-academic capture --url "https://www.maastrichtuniversity.nl/" --host maastrichtuniversity.nl --phrase Maastricht --requirement institution_homepage --out .\homepage-evidence.json
 aihawk-academic preview .\application.json .\application-review.html
+aihawk-academic inspect .\application.json .\private-field-inventory.json
 aihawk-academic autofill .\application.json
+aihawk-academic autofill-stages .\multi-stage-application.json
 aihawk-academic track-prepared .\application.json
 aihawk-academic track-status .\application.json
 aihawk-academic track-submitted .\application.json --proof .\receipt.pdf
@@ -70,15 +82,16 @@ outside a public repository.
 1. No actual authenticated university portal has been exercised by the new
    form preparer. Per-site controls, sign-in and dynamic workflows still need
    to be inspected and individually tested with permission.
-2. The form preparer cannot safely claim to support all portals, CAPTCHAs,
-   multi-step registration systems or third-party authentication.
+2. Multi-stage forms are supported only where exact paths and reviewed
+   selectors have been supplied. Real university multi-step workflows,
+   CAPTCHAs and third-party authentication remain unverified.
 3. Network request interception is defense in depth, not complete isolation
    from scripts and pre-existing WebSocket connections.
 4. The original AIHawk job bot has a broad tool-driven browser and is not
    protected by the separate academic review/approval modules.
-5. The complete original AIHawk CI suite on the latest branch has not been
-   verified as successful. The latest full-suite workflow was still queued
-   when this report was written.
+5. The complete original AIHawk CI suite on the latest multi-stage branch
+   has not yet been verified as successful. A previous full-suite baseline
+   was green.
 6. University-side receipt or admission decisions cannot be asserted from
    the operator's local status records.
 
