@@ -192,3 +192,24 @@ def test_attachment_disappeared_after_review_is_rejected(tmp_path):
     (tmp_path / "cv.pdf").unlink()
     with pytest.raises(PortalPreparationError, match="unavailable"):
         prepare_fields(Page({"#name": Locator()}), reviewed)
+
+
+def test_hidden_file_input_uses_direct_upload_without_clicking_picker(tmp_path):
+    data = document()
+    data["portal_bindings"] = [{"field": "cv.pdf", "selector": "#hidden-cv", "kind": "upload"}]
+    (tmp_path / "cv.pdf").write_bytes(b"private sample document")
+    approved = plan_from_manifest(data, manifest_dir=tmp_path)
+    hidden = Locator(field_type="file", visible=False)
+    assert prepare_fields(Page({"#hidden-cv": hidden}), approved) == ("cv.pdf",)
+    assert [action for action, _ in hidden.calls] == ["upload"]
+
+
+def test_hidden_text_inputs_are_still_rejected(tmp_path):
+    data = document()
+    data["portal_bindings"] = [{"field": "full_name", "selector": "#hidden-name", "kind": "text"}]
+    (tmp_path / "cv.pdf").write_bytes(b"private sample document")
+    approved = plan_from_manifest(data, manifest_dir=tmp_path)
+    hidden = Locator(field_type="text", visible=False)
+    with pytest.raises(PortalPreparationError, match="not visible"):
+        prepare_fields(Page({"#hidden-name": hidden}), approved)
+    assert hidden.calls == []
