@@ -27,3 +27,6 @@ programme-review.json
 homepage-evidence.json
 maastricht-homepage.json
 academic-local/
+
+# Authentication-bearing isolated academic browser state
+.aihawk-academic-session/
