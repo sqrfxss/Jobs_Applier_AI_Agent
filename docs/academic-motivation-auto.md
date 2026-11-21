@@ -72,3 +72,31 @@ Existing letters and previously edited briefs are **never silently overwritten**
 ## Example BMAI review case
 
 The private Max Planck BMAI motivation draft uses the CV's documented degrees, gait and force-platform research, MATLAB/Python laboratory programming and GRF prediction publications. The one-page Word document is a **review draft**. Its upload, any supervisor or referee selection, and final university submission were not performed by the letter-generation command.
+
+## BMAI live format issue and verified PDF output
+
+The authenticated BMAI 2027 portal rejected the initial DOCX motivation
+letter. The institution's field allows txt, doc, pptx, pdf, jpg, jpeg and png,
+but not docx. Renaming a DOCX to .pdf is not conversion.
+
+The single-letter command has a --pdf flag to export the reviewed Times New
+Roman Word document with Word on Windows or LibreOffice elsewhere:
+
+    aihawk-academic motivation-letter private-position.json MotivationLetter.docx --pdf
+
+In a position queue, set portal_allowed_extensions to an independently
+verified list of allowed file types (e.g. ["txt","doc","pptx","pdf","jpg","jpeg","png"]).
+When the field excludes DOCX and includes PDF, motivation-auto creates an
+additional A4, one-page, source-checked PDF. The original Word draft is retained.
+This operation does not upload files by itself.
+
+In a real logged-in Max Planck application test on 21 November 2026, the
+converted one-page letter was uploaded in Letter of Motivation, shown with a
+file link and Remove control, and persisted after the ordinary Save on the
+application View page. The portal lowercased the receipt's filename. The
+matching local verified report is
+26_BMAI_Motivation_Live_Upload_Verified.json (private application folder).
+
+The attachment's bytes were not independently downloaded and rehashed.
+A verified draft upload is not a final university application submission.
+No referee invitations or final submission actions were performed.
