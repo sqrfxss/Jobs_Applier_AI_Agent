@@ -71,3 +71,19 @@ def test_noninteractive_inspection_forbidden(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "stdin", type("NotTerminal", (), {"isatty": lambda self: False})())
     with pytest.raises(PortalPreparationError, match="interactive"):
         run_interactive_inspection(tmp_path / "manifest.json", tmp_path / "out.json")
+
+
+def test_hidden_upload_is_reported_without_capturing_its_value():
+    page = ReadOnlyPage([{
+        "type": "file",
+        "name": "degree_file",
+        "label": "Degree certificate",
+        "selector": "#degree-file",
+        "unique": True,
+        "hiddenUpload": True,
+    }])
+    result = inspect_controls(page, official_hosts=("uni.example.edu",))
+    assert result["controls"][0]["kind"] == "upload"
+    assert result["controls"][0]["hidden_upload"] is True
+    assert result["values_captured"] is False
+    assert "element.value" not in INSPECT_EXPRESSION
