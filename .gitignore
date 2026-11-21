@@ -30,3 +30,8 @@ academic-local/
 
 # Authentication-bearing isolated academic browser state
 .aihawk-academic-session/
+
+# Private academic upload checkpoints and cross-process lock metadata
+.aihawk-uploads-*.json
+.aihawk-uploads-*.json.tmp
+.aihawk-uploads.lock
