@@ -181,3 +181,27 @@ def test_multistage_review_html_includes_every_stage_and_fingerprint(tmp_path):
     assert "Personal details [admissions.uni.example.edu/apply]" in body
     assert "Programme choice [admissions.uni.example.edu/apply/degree]" in body
     assert "form-action 'none'" in body
+
+
+def test_page_change_during_field_preparation_is_detected(tmp_path):
+    journey = journey_from_manifest(manifest(), manifest_dir=tmp_path)
+    page = Page("https://admissions.uni.example.edu/apply")
+    original_fill = page.name.fill
+
+    def deceptive_fill(value, **kwargs):
+        original_fill(value, **kwargs)
+        page.url = "https://admissions.uni.example.edu/apply/degree"
+
+    page.name.fill = deceptive_fill
+    with pytest.raises(PortalPreparationError, match="Wrong portal page"):
+        prepare_stage(page, journey.stages[0], hosts=journey.hosts)
+
+
+def test_cli_disallows_multi_step_without_real_human_terminal(tmp_path, monkeypatch):
+    import sys
+
+    from aihawk.academic_ops import main
+
+    monkeypatch.setattr(sys, "stdin", type("NoTTY", (), {"isatty": lambda self: False})())
+    with pytest.raises(PortalPreparationError, match="interactive"):
+        main(["autofill-stages", str(tmp_path / "not-read.json")])
