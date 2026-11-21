@@ -178,6 +178,23 @@ def prepare_position(
     return brief_path, directory / "MotivationLetter_TimesNewRoman.docx"
 
 
+def _required_portal_format(position: dict[str, Any]) -> str:
+    """Select a verified portal-accepted format; never guess a university rule."""
+    allowed = position.get("portal_allowed_extensions")
+    if allowed is None:
+        return "docx"  # No site-specific conversion is authorized or implied.
+    if not isinstance(allowed, list) or not allowed or not all(
+        isinstance(ext, str) and re.fullmatch(r"\\.?[a-zA-Z0-9]{1,12}", ext) for ext in allowed
+    ):
+        raise MotivationError("Invalid official portal file-extension list.")
+    normalized = {ext.casefold().lstrip(".") for ext in allowed}
+    if "docx" in normalized:
+        return "docx"
+    if "pdf" in normalized:
+        return "pdf"
+    raise MotivationError("The portal does not accept DOCX or PDF; a suitable reviewed export is unavailable.")
+
+
 def process_queue(
     queue_path: Path,
     *,
@@ -191,13 +208,29 @@ def process_queue(
     for position in positions:
         identifier = str(position.get("official_url", "unknown"))[:1200]
         try:
+            required_format = _required_portal_format(position)
             brief, output = prepare_position(root, name, cv_path, position, fetcher=fetcher)
-            if output.exists():
-                results.append({"official_url": identifier, "status": "already_drafted_review_required", "path": str(output)})
+            final_path = output.with_suffix(".pdf") if required_format == "pdf" else output
+            if final_path.exists():
+                results.append({"official_url": identifier, "status": "already_drafted_review_required", "path": str(final_path)})
                 continue
-            draft = draft_provider(brief, position) if draft_provider is not None else None
-            deliver(brief, output, draft_path=draft, model=model)
-            results.append({"official_url": identifier, "status": "drafted_review_required", "path": str(output)})
+            created = False
+            if not output.exists():
+                draft = draft_provider(brief, position) if draft_provider is not None else None
+                deliver(brief, output, draft_path=draft, model=model)
+                created = True
+            if required_format == "pdf":
+                from aihawk.academic_motivation_pdf import export_letter_pdf
+
+                export_letter_pdf(
+                    output, final_path, expected_name=name,
+                    expected_institution=str(position["institution"]),
+                )
+            results.append({
+                "official_url": identifier,
+                "status": "drafted_review_required" if created else "pdf_exported_review_required",
+                "path": str(final_path),
+            })
         except (OSError, ValueError, RuntimeError) as error:
             results.append({"official_url": identifier, "status": "error", "reason": type(error).__name__ + ": " + str(error)[:240]})
     summary = {
