@@ -63,7 +63,7 @@ class UploadJournal:
             except (OSError, BlockingIOError) as error:
                 os.close(fd)
                 raise PortalPreparationError(
-                    "Another academic upload process holds this application's lock."
+                    "Another upload process holds this application's academic lock."
                 ) from error
         except PortalPreparationError:
             raise
