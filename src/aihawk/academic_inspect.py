@@ -104,7 +104,9 @@ def run_interactive_inspection(manifest: Path, output: Path, *, prompt=input) ->
     except ImportError as error:
         raise PortalPreparationError("Install the optional Playwright browser dependency.") from error
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        from aihawk.academic_browser_launch import launch_operator_browser
+
+        browser = launch_operator_browser(p, headless=False)
         context = browser.new_context(service_workers="block", accept_downloads=False)
         page = context.new_page()
         try:
