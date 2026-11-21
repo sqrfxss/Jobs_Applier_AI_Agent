@@ -10,6 +10,7 @@ import pytest
 from aihawk.academic_browser import PortalPreparationError
 from aihawk.academic_uploads import (
     UploadNetworkGuard,
+    _verify_file,
     receipt_present,
     run_interactive_uploads,
     upload_plan_from_manifest,
@@ -171,4 +172,57 @@ def test_prior_file_names_reject_traversal_duplicates_and_self_reference(tmp_pat
     data["portal_uploads"][0]["expected_existing_files"] = prior
     (tmp_path / "proof.pdf").write_bytes(b"%PDF-1.4")
     with pytest.raises(PortalPreparationError):
+        upload_plan_from_manifest(data, manifest_dir=tmp_path)
+
+
+def test_bmai_rejects_docx_before_attempting_pdf_only_field(tmp_path):
+    data = manifest()
+    data["attachments"] = ["motivation.docx"]
+    data["portal_uploads"][0]["field"] = "motivation.docx"
+    data["portal_uploads"][0]["allowed_extensions"] = ["txt", "doc", "pptx", "pdf", "jpg", "jpeg", "png"]
+    (tmp_path / "motivation.docx").write_bytes(b"PK synthetic Word")
+    with pytest.raises(PortalPreparationError, match="extension"):
+        upload_plan_from_manifest(data, manifest_dir=tmp_path)
+
+
+def test_bmai_allows_pdf_after_conversion_with_valid_bytes(tmp_path):
+    data = manifest()
+    data["portal_uploads"][0]["allowed_extensions"] = [".PDF", ".JPG"]
+    (tmp_path / "proof.pdf").write_bytes(b"%PDF-1.4 valid-synthetic")
+    plan = upload_plan_from_manifest(data, manifest_dir=tmp_path)
+    assert plan.bindings[0].allowed_extensions == ("pdf", "jpg")
+    _verify_file(plan.attachments[0][1], plan.attachments[0][2], allowed_extensions=("pdf",))
+
+
+def test_renamed_word_document_is_not_mistaken_for_pdf(tmp_path):
+    data = manifest()
+    data["portal_uploads"][0]["allowed_extensions"] = ["pdf"]
+    (tmp_path / "proof.pdf").write_bytes(b"PK word document disguised as PDF")
+    plan = upload_plan_from_manifest(data, manifest_dir=tmp_path)
+    with pytest.raises(PortalPreparationError, match="signature"):
+        _verify_file(plan.attachments[0][1], plan.attachments[0][2], allowed_extensions=("pdf",))
+
+
+def test_exact_approved_server_renaming_is_supported(tmp_path):
+    mapping = replace(build(tmp_path).bindings[0], receipt_filename="proof_lowercase.pdf")
+    assert receipt_present(FakeContainer(["proof_lowercase.pdf"], 1), mapping, "proof.pdf")
+    assert not receipt_present(FakeContainer(["proof.pdf"], 1), mapping, "proof.pdf")
+    assert not receipt_present(FakeContainer(["proof_lowercase.pdf"], 0), mapping, "proof.pdf")
+
+
+@pytest.mark.parametrize("receipt", ["../proof.pdf", "other/thing.pdf", "proof.docx", ""])
+def test_unapproved_server_receipt_filename_fails_closed(tmp_path, receipt):
+    data = manifest()
+    data["portal_uploads"][0]["receipt_filename"] = receipt
+    (tmp_path / "proof.pdf").write_bytes(b"%PDF-1.4 synthetic")
+    with pytest.raises(PortalPreparationError, match="receipt"):
+        upload_plan_from_manifest(data, manifest_dir=tmp_path)
+
+
+@pytest.mark.parametrize("extensions", [["pdf", "pdf"], ["../pdf"], ["pdf;exe"], [""], [True]])
+def test_malformed_extension_allowlist_fails_closed(tmp_path, extensions):
+    data = manifest()
+    data["portal_uploads"][0]["allowed_extensions"] = extensions
+    (tmp_path / "proof.pdf").write_bytes(b"%PDF-1.4 synthetic")
+    with pytest.raises(PortalPreparationError, match="allowlist"):
         upload_plan_from_manifest(data, manifest_dir=tmp_path)
