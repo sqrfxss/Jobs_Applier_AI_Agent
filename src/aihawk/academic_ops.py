@@ -119,6 +119,11 @@ def main(argv: list[str] | None = None) -> int:
     motivation.add_argument("--draft-json", type=Path, help="Optional reviewed model draft; otherwise use the configured OpenAI API.")
     motivation.add_argument("--model", help="OpenAI API model (or set OPENAI_MODEL).")
     motivation.add_argument("--overwrite", action="store_true", help="Replace an existing DOCX only when deliberately requested.")
+    batch = subs.add_parser("motivation-batch", help="Plan or explicitly generate separately reviewed letters for multiple positions.")
+    batch.add_argument("queue", type=Path, help="Private queue JSON listing one brief per position.")
+    batch.add_argument("--generate", action="store_true", help="Explicitly generate all reviewed letters; default only previews.")
+    batch.add_argument("--model", help="OpenAI model for API-backed drafts.")
+    batch.add_argument("--overwrite", action="store_true")
     for name in ("track-prepared", "track-submitted", "track-status"):
         track = subs.add_parser(name, help="Record or inspect local redacted application status.")
         track.add_argument("manifest", type=Path)
@@ -126,6 +131,18 @@ def main(argv: list[str] | None = None) -> int:
         if name == "track-submitted":
             track.add_argument("--proof", type=Path, help="Local confirmation evidence file (optional).")
     args = parser.parse_args(argv)
+
+    if args.action == "motivation-batch":
+        from aihawk.academic_motivation_batch import run_batch
+
+        results = run_batch(args.queue, generate=args.generate, model=args.model, overwrite=args.overwrite)
+        for entry in results:
+            print(f"{entry['institution']} — {entry['programme']}: {entry['status']} ({entry['output']})")
+        if not args.generate:
+            print("Read-only preview. Supply --generate explicitly to create any letters.")
+        else:
+            print("Private drafts created; applicant review required. No portal submission.")
+        return 0
 
     if args.action == "motivation-letter":
         from aihawk.academic_motivation import deliver
