@@ -120,6 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     motivation.add_argument("--draft-json", type=Path, help="Optional reviewed model draft; otherwise use the configured OpenAI API.")
     motivation.add_argument("--model", help="OpenAI API model (or set OPENAI_MODEL).")
     motivation.add_argument("--overwrite", action="store_true", help="Replace an existing DOCX only when deliberately requested.")
+    motivation.add_argument("--pdf", action="store_true", help="Also export a verified single-page A4 PDF in the private application folder.")
     motivation_auto = subs.add_parser(
         "motivation-auto",
         help="Generate individual, evidence-grounded draft DOCX letters from a private position queue.",
@@ -170,6 +171,17 @@ def main(argv: list[str] | None = None) -> int:
             model=args.model, overwrite=args.overwrite,
         )
         print("Private Word motivation-letter draft: " + str(result))
+        if args.pdf:
+            from aihawk.academic_motivation import load_brief
+            from aihawk.academic_motivation_pdf import export_letter_pdf
+
+            review = load_brief(args.brief)
+            pdf = export_letter_pdf(
+                result, result.with_suffix(".pdf"),
+                expected_name=review.applicant_name,
+                expected_institution=review.institution,
+            )
+            print("Verified one-page PDF motivation draft: " + str(pdf))
         print("Times New Roman; no watermark; applicant review required. Nothing submitted.")
         return 0
 
