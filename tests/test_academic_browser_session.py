@@ -11,6 +11,7 @@ from aihawk.academic_browser_session import (
     official_session_page,
     private_profile_dir,
     run_interactive_session,
+    workflow_context,
 )
 
 MISSING = RuntimeError("BrowserType.launch: Executable doesn't exist at example/path")
@@ -149,3 +150,12 @@ def test_interactive_session_refuses_background_execution(tmp_path, monkeypatch)
     monkeypatch.setattr(sys, "stdin", type("NonTTY", (), {"isatty": lambda self: False})())
     with pytest.raises(PortalPreparationError, match="interactive"):
         run_interactive_session(tmp_path / "missing.json")
+
+
+def test_persistent_workflows_share_the_same_context_factory(tmp_path):
+    sentinel = object()
+    fake = FakePlaywright([sentinel])
+    context, browser = workflow_context(fake, manifest_dir=tmp_path, persistent=True)
+    assert context is sentinel
+    assert browser is None
+    assert fake.chromium.calls[0]["user_data_dir"].endswith(".aihawk-academic-session")
