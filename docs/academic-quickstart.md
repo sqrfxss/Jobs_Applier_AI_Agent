@@ -525,12 +525,12 @@ Example private queue:
 
 Read-only readiness preview (no API calls, writes or attachments submitted):
 
-    aihawk-academic motivation-batch .\private-writing-queue.json
+    aihawk-academic motivation-batch-reviewed .\private-writing-queue.json
 
 Generate sequentially after checking each position's official evidence.
 This may send the private CV to the selected OpenAI API model and incur charges:
 
-    aihawk-academic motivation-batch .\private-writing-queue.json --generate
+    aihawk-academic motivation-batch-reviewed .\private-writing-queue.json --generate
 
 For a ChatGPT-reviewed draft without an API call, one queue item may instead
 provide "draft_json": "bmai-reviewed-paragraphs.json". Each generated letter
@@ -538,3 +538,10 @@ has an individual DOCX and review ledger; batch progress is tracked privately
 in .aihawk-motivation-batch.json. An individual failure stops the queue and
 marks that entry for review without claiming any university submission.
 Every document remains an applicant-reviewed draft, not a sent application.
+
+Alternatively, the separate command named motivation-batch accepts a queue
+with ONE CV and multiple official opportunity URLs, fetches their public
+institutional pages, and constructs a unique private evidence brief for each.
+The reviewed queue above uses motivation-batch-reviewed deliberately: these
+two input formats and approval modes are not interchangeable. Do not publish
+either queue, CV or generated letter in the public repository.
