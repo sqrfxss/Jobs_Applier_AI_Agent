@@ -33,6 +33,7 @@ class UploadMapping:
     expected_path: str
     upload_endpoint_path: str
     expand_selector: str | None = None
+    expected_existing_files: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.field or not self.expected_path.startswith("/") or not self.upload_endpoint_path.startswith("/"):
@@ -52,6 +53,18 @@ class UploadMapping:
             or len(self.expand_selector) > 300
         ):
             raise PortalPreparationError("Invalid reviewed accordion expander selector.")
+        names = self.expected_existing_files
+        if not isinstance(names, (list, tuple)) or any(
+            not isinstance(name, str)
+            or not name
+            or name != Path(name).name
+            or len(name) > 180
+            for name in names
+        ):
+            raise PortalPreparationError("Invalid previously approved document names.")
+        if len(set(names)) != len(names) or self.field in names:
+            raise PortalPreparationError("Duplicate or self-referential prior upload approval.")
+        object.__setattr__(self, "expected_existing_files", tuple(names))
 
 
 @dataclass(frozen=True)
@@ -90,6 +103,9 @@ def upload_plan_from_manifest(data: dict[str, Any], *, manifest_dir: Path) -> Up
     files = data.get("attachments", [])
     if any(name not in files for name in names):
         raise PortalPreparationError("An upload mapping references a file outside the approved manifest.")
+    for mapping in bindings:
+        if any(name not in files for name in mapping.expected_existing_files):
+            raise PortalPreparationError("Previously approved upload files must be in the reviewed manifest.")
     root = manifest_dir.resolve(strict=True)
     attachments = tuple(
         (name, (root / name).resolve(), digest)
@@ -121,9 +137,11 @@ def _require_page(page: Any, plan: UploadPlan, mapping: UploadMapping) -> None:
 def receipt_present(container: Any, mapping: UploadMapping, filename: str) -> bool:
     """Require a server file link AND a Remove action, not a selected local file."""
     receipts = container.locator(mapping.receipt_selector)
-    links = [name.strip() for name in receipts.all_text_contents()]
+    links = [name.strip() for name in receipts.all_text_contents() if name.strip()]
     remove = container.locator(mapping.remove_selector).count()
-    return filename in links and remove == 1
+    # Multi-file fields expose one file link and one Remove control per upload.
+    # Never count a selected file without its portal-side removal control.
+    return links.count(filename) == 1 and remove >= len(links) and remove > 0
 
 
 class UploadNetworkGuard:
@@ -169,10 +187,12 @@ def upload_one(page: Any, context: Any, plan: UploadPlan, mapping: UploadMapping
         raise PortalPreparationError("File upload container is missing or ambiguous.")
     if receipt_present(container, mapping, path.name):
         return "already_uploaded"
-    # Other existing filenames require manual review; never overwrite silently.
+    # Only explicitly reviewed prior files may coexist in a multi-file field.
+    # Never overwrite, replace, duplicate or silently remove other documents.
     existing = [name.strip() for name in container.locator(mapping.receipt_selector).all_text_contents() if name.strip()]
-    if existing:
-        raise PortalPreparationError("Another document is already uploaded in this field.")
+    approved_prior = set(mapping.expected_existing_files)
+    if len(existing) != len(approved_prior) or set(existing) != approved_prior:
+        raise PortalPreparationError("Existing portal documents differ from the reviewed prior-file list.")
     control = container.locator(mapping.input_selector)
     button = container.locator(mapping.upload_button_selector)
     if control.count() != 1 or button.count() != 1:
