@@ -213,3 +213,40 @@ def test_hidden_text_inputs_are_still_rejected(tmp_path):
     with pytest.raises(PortalPreparationError, match="not visible"):
         prepare_fields(Page({"#hidden-name": hidden}), approved)
     assert hidden.calls == []
+
+
+def test_existing_matching_text_is_preserved_and_never_refilled(tmp_path):
+    data = document()
+    data["portal_bindings"] = [{"field": "full_name", "selector": "#name", "kind": "text"}]
+    (tmp_path / "cv.pdf").write_bytes(b"file")
+    reviewed = plan_from_manifest(data, manifest_dir=tmp_path)
+    current = Locator()
+    current.value = "Example Person"
+    assert prepare_fields(Page({"#name": current}), reviewed) == ("full_name",)
+    assert current.calls == []
+
+
+def test_existing_conflicting_text_fails_without_overwriting(tmp_path):
+    data = document()
+    data["portal_bindings"] = [{"field": "full_name", "selector": "#name", "kind": "text"}]
+    (tmp_path / "cv.pdf").write_bytes(b"file")
+    reviewed = plan_from_manifest(data, manifest_dir=tmp_path)
+    current = Locator()
+    current.value = "Different Applicant"
+    with pytest.raises(PortalPreparationError, match="Existing entered value"):
+        prepare_fields(Page({"#name": current}), reviewed)
+    assert current.value == "Different Applicant"
+    assert current.calls == []
+
+
+def test_existing_conflicting_select_fails_without_overwriting(tmp_path):
+    data = document()
+    data["portal_bindings"] = [{"field": "programme", "selector": "#programme", "kind": "select"}]
+    (tmp_path / "cv.pdf").write_bytes(b"file")
+    reviewed = plan_from_manifest(data, manifest_dir=tmp_path)
+    current = Locator(tag="select")
+    current.value = "PhD"
+    with pytest.raises(PortalPreparationError, match="Existing selection differs"):
+        prepare_fields(Page({"#programme": current}), reviewed)
+    assert current.value == "PhD"
+    assert current.calls == []
