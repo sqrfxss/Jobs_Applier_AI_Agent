@@ -107,3 +107,22 @@ def test_cli_passes_private_persistent_profile_option(monkeypatch, tmp_path, act
     args.append("--persistent")
     assert main(args) == 0
     assert calls == [(action, {"persistent": True})]
+
+
+def test_redacted_snapshot_cli_does_not_open_browser(tmp_path):
+    snapshot = tmp_path / "snapshot.txt"
+    destination = tmp_path / "historical-status.json"
+    snapshot.write_text(
+        "Verified host: admissions.uni.example.edu\n"
+        "001|Text|Email|\n"
+        "002|Edit|Email *|[BLANK]\n",
+        encoding="utf-8",
+    )
+    assert main([
+        "audit-snapshot", str(snapshot), str(destination),
+        "--host", "admissions.uni.example.edu",
+    ]) == 0
+    data = json.loads(destination.read_text(encoding="utf-8"))
+    assert data["live_portal_verified"] is False
+    assert data["counts"]["required_blank"] == 1
+    assert data["submission_ready"] is False
