@@ -238,3 +238,47 @@ def test_guarded_ajax_upload_receipt_and_idempotence_without_file_picker(tmp_pat
         assert not any(u.endswith("/submission") for _, u in requests)
         context.close()
         browser.close()
+
+
+def test_isolated_persistent_browser_keeps_only_its_synthetic_login(tmp_path):
+    from aihawk.academic_browser_session import launch_academic_context
+
+    sync_api = pytest.importorskip("playwright.sync_api")
+    fake_url = "https://admissions.uni.example.edu/apply"
+    with sync_api.sync_playwright() as playwright:
+        first = launch_academic_context(playwright, manifest_dir=tmp_path, headless=True)
+        first.add_cookies([{"name": "synthetic_session", "value": "test-only", "url": fake_url}])
+        assert any(c["name"] == "synthetic_session" for c in first.cookies([fake_url]))
+        first.close()
+
+        resumed = launch_academic_context(playwright, manifest_dir=tmp_path, headless=True)
+        try:
+            cookies = resumed.cookies([fake_url])
+            assert any(c["name"] == "synthetic_session" and c["value"] == "test-only" for c in cookies)
+            assert not any(c["name"] == "personal_chrome_cookie" for c in cookies)
+        finally:
+            resumed.close()
+
+
+def test_real_chromium_inventory_discovers_hidden_file_control(tmp_path):
+    from aihawk.academic_inspect import inspect_controls
+
+    sync_api = pytest.importorskip("playwright.sync_api")
+    url = "https://admissions.uni.example.edu/hidden"
+    with sync_api.sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        context = browser.new_context(service_workers="block")
+        context.route(url, lambda route: route.fulfill(
+            content_type="text/html",
+            body="<label for='proof'>Proof</label><input id='proof' type='file' style='display:none'>"
+                 "<input id='secret' type='password' value='do-not-export'>",
+        ))
+        page = context.new_page()
+        page.goto(url)
+        result = inspect_controls(page, official_hosts=("uni.example.edu",))
+        assert len(result["controls"]) == 1
+        assert result["controls"][0]["kind"] == "upload"
+        assert result["controls"][0]["hidden_upload"] is True
+        assert "do-not-export" not in str(result)
+        context.close()
+        browser.close()
