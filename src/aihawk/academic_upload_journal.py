@@ -26,6 +26,7 @@ class UploadJournal:
         self.lock_path = root / ".aihawk-uploads.lock"
         self.fingerprint = fingerprint
         self._locked = False
+        self._lock_fd: int | None = None
         self._records: dict[str, dict[str, str]] = {}
         if self.filename.is_symlink() or self.lock_path.is_symlink():
             raise PortalPreparationError("Refusing a redirected upload journal.")
@@ -39,19 +40,67 @@ class UploadJournal:
             self._records = records
 
     def __enter__(self) -> Self:
+        """Take an OS-released lock, not a permanently stale O_EXCL marker.
+
+        The stable lock file is intentionally NOT removed: unlinking a Unix
+        flock file could let another process lock a new inode concurrently.
+        """
+        flags = os.O_CREAT | os.O_RDWR
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
         try:
-            descriptor = os.open(str(self.lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except FileExistsError as error:
-            raise PortalPreparationError("Another upload run or stale upload lock exists for this application.") from error
-        with os.fdopen(descriptor, "w", encoding="utf-8") as out:
-            out.write("exclusive academic upload run\n")
+            fd = os.open(str(self.lock_path), flags, 0o600)
+            try:
+                os.lseek(fd, 0, os.SEEK_SET)
+                if os.name == "nt":
+                    import msvcrt
+
+                    msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except (OSError, BlockingIOError) as error:
+                os.close(fd)
+                raise PortalPreparationError(
+                    "Another academic upload process holds this application's lock."
+                ) from error
+        except PortalPreparationError:
+            raise
+        except OSError as error:
+            raise PortalPreparationError("Cannot safely open the academic upload lock.") from error
+        self._lock_fd = fd
         self._locked = True
+        # Do not trust the journal state cached before acquiring the lock.
+        # Another process may have completed uploads in the meantime.
+        try:
+            if self.filename.exists():
+                loaded = json.loads(self.filename.read_text(encoding="utf-8"))
+                if loaded.get("plan_fingerprint") != self.fingerprint or not isinstance(loaded.get("records"), dict):
+                    raise PortalPreparationError("Upload journal changed or is malformed.")
+                self._records = loaded["records"]
+        except BaseException:
+            self.__exit__()
+            raise
         return self
 
     def __exit__(self, *_: object) -> None:
-        if self._locked:
-            self.lock_path.unlink(missing_ok=True)
-            self._locked = False
+        fd = self._lock_fd
+        if fd is not None:
+            try:
+                os.lseek(fd, 0, os.SEEK_SET)
+                if os.name == "nt":
+                    import msvcrt
+
+                    msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(fd, fcntl.LOCK_UN)
+            finally:
+                os.close(fd)
+                self._lock_fd = None
+                self._locked = False
 
     def last_status(self, field: str) -> str | None:
         record = self._records.get(field)
