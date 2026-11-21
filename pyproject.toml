@@ -37,7 +37,7 @@ dependencies = [
 [project.optional-dependencies]
 academic-browser = ["playwright>=1.55,<2"]
 academic-writing = ["python-docx>=1.1,<2", "openai>=2,<3", "pypdf>=4", "pywin32>=306; sys_platform == 'win32'"]
-dev = ["pytest>=8", "ruff>=0.6", "pyarrow>=15"]  # pyarrow: the pipeline writes description files with it
+dev = ["pytest>=8", "ruff>=0.6", "pyarrow>=15", "python-docx>=1.1,<2"]  # pyarrow: the pipeline writes description files with it
 
 [project.scripts]
 aihawk = "aihawk.cli:run"
