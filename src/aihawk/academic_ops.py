@@ -119,6 +119,12 @@ def main(argv: list[str] | None = None) -> int:
     motivation.add_argument("--draft-json", type=Path, help="Optional reviewed model draft; otherwise use the configured OpenAI API.")
     motivation.add_argument("--model", help="OpenAI API model (or set OPENAI_MODEL).")
     motivation.add_argument("--overwrite", action="store_true", help="Replace an existing DOCX only when deliberately requested.")
+    motivation_batch = subs.add_parser(
+        "motivation-batch",
+        help="Generate individual, evidence-grounded draft DOCX letters from a private position queue.",
+    )
+    motivation_batch.add_argument("queue", type=Path, help="Private JSON position queue with a locally stored CV.")
+    motivation_batch.add_argument("--model", help="OpenAI API model (or set OPENAI_MODEL).")
     batch = subs.add_parser("motivation-batch", help="Plan or explicitly generate separately reviewed letters for multiple positions.")
     batch.add_argument("queue", type=Path, help="Private queue JSON listing one brief per position.")
     batch.add_argument("--generate", action="store_true", help="Explicitly generate all reviewed letters; default only previews.")
@@ -143,6 +149,17 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print("Private drafts created; applicant review required. No portal submission.")
         return 0
+
+    if args.action == "motivation-batch":
+        from aihawk.academic_motivation_auto import process_queue
+
+        report = process_queue(args.queue, model=args.model)
+        successful = sum(row["status"] == "drafted_review_required" for row in report["results"])
+        pending = sum(row["status"] == "already_drafted_review_required" for row in report["results"])
+        failed = sum(row["status"] == "error" for row in report["results"])
+        print(f"New Word drafts: {successful}; previously drafted: {pending}; errors: {failed}.")
+        print("Each draft requires applicant review. No application was submitted.")
+        return 1 if failed else 0
 
     if args.action == "motivation-letter":
         from aihawk.academic_motivation import deliver
