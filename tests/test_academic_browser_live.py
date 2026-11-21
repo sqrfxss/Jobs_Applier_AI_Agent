@@ -348,3 +348,67 @@ def test_onchange_auto_upload_is_guarded_before_file_attachment(tmp_path):
         assert page.locator("#final-submit").count() == 1
         context.close()
         browser.close()
+
+
+def test_reviewed_accordion_opens_only_its_file_section(tmp_path):
+    from aihawk.academic_uploads import upload_one, upload_plan_from_manifest
+
+    sync_api = pytest.importorskip("playwright.sync_api")
+    (tmp_path / "degree.pdf").write_bytes(b"%PDF-1.4 degree sample")
+    url = "https://admissions.uni.example.edu/apply"
+    data = {
+        "title": "Synthetic accordion upload",
+        "official_application_url": url,
+        "official_hosts": ["uni.example.edu"],
+        "applicant_id": "synthetic",
+        "fields": {},
+        "attachments": ["degree.pdf"],
+        "portal_uploads": [{
+            "field": "degree.pdf", "input_selector": "#degree",
+            "upload_button_selector": "#degree-upload",
+            "container_selector": "#degree-section",
+            "receipt_selector": ".file a", "remove_selector": "button.remove",
+            "expected_path": "/apply", "upload_endpoint_path": "/file/ajax",
+            "expand_selector": "#expand-degree",
+        }],
+    }
+    plan = upload_plan_from_manifest(data, manifest_dir=tmp_path)
+    html = """<button id='expand-degree' type='button'
+          onclick="document.querySelector('#panel').hidden=false">Degree documents</button>
+       <section id='degree-section'>
+         <div id='panel' hidden>
+           <input id='degree' type='file' hidden>
+           <button id='degree-upload' type='button' onclick='uploadIt()'>Upload</button>
+         </div>
+         <div class='file'></div>
+       </section>
+       <button id='submit' type='submit'>Submit application</button>
+       <script>async function uploadIt(){
+         const f=document.getElementById('degree').files[0];
+         const r=await fetch('/file/ajax',{method:'POST',body:'synthetic'});
+         if(r.ok){
+            document.querySelector('.file').innerHTML='<a>'+f.name+'</a>';
+            const b=document.createElement('button');
+            b.className='remove';b.textContent='Remove';
+            document.getElementById('degree-section').append(b);
+         }
+       }</script>"""
+    with sync_api.sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        context = browser.new_context(service_workers="block")
+        def routes(route):
+            if route.request.url == url:
+                route.fulfill(content_type="text/html", body=html)
+            elif route.request.url.endswith("/file/ajax"):
+                route.fulfill(content_type="application/json", body='{"ok":true}')
+            else:
+                route.fulfill(status=403, body="disallowed")
+        context.route("**/*", routes)
+        page = context.new_page()
+        page.goto(url)
+        assert not page.locator("#degree-upload").is_visible()
+        assert upload_one(page, context, plan, plan.bindings[0]) == "uploaded"
+        assert page.locator("#degree-upload").is_visible()
+        assert page.locator("#submit").count() == 1
+        context.close()
+        browser.close()
