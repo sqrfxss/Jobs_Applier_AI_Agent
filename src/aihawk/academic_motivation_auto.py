@@ -91,7 +91,7 @@ def _read_queue(queue_path: Path) -> tuple[Path, str, Path, list[dict[str, Any]]
     cv_name = _required(data.get("cv_file"), "cv_file")
     cv_path = (root / cv_name).resolve()
     if not cv_path.is_relative_to(root) or not cv_path.is_file() or cv_path.suffix.lower() != ".pdf":
-        raise MotivationError("CV must be a PDF within the private queue directory.")
+        raise MotivationError("CV must be a PDF inside the private queue directory.")
     if cv_path.stat().st_size > 10_000_000:
         raise MotivationError("CV exceeds the supported file-size limit.")
     items = data.get("positions")
