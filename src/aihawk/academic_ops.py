@@ -92,10 +92,12 @@ def main(argv: list[str] | None = None) -> int:
     handoff.add_argument("manifest", type=Path)
     autofill = subs.add_parser("autofill", help="Prepare explicitly mapped controls in a visible browser; user submits manually.")
     autofill.add_argument("manifest", type=Path)
+    autofill.add_argument("--persistent", action="store_true", help="Reuse the private academic browser login.")
     autofill_stages = subs.add_parser(
         "autofill-stages", help="Prepare individually reviewed stages; human navigates between pages and submits."
     )
     autofill_stages.add_argument("manifest", type=Path)
+    autofill_stages.add_argument("--persistent", action="store_true", help="Reuse the private academic browser login.")
     session = subs.add_parser("session", help="One-time login in a dedicated, persistent university-only browser.")
     session.add_argument("manifest", type=Path)
     uploads = subs.add_parser("upload-reviewed", help="Upload reviewed files in one persistent browser, checking server receipts.")
@@ -103,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
     inspect = subs.add_parser("inspect", help="Read form labels and control types without accessing applicant values.")
     inspect.add_argument("manifest", type=Path)
     inspect.add_argument("output", type=Path)
+    inspect.add_argument("--persistent", action="store_true", help="Reuse the private academic browser login.")
     for name in ("track-prepared", "track-submitted", "track-status"):
         track = subs.add_parser(name, help="Record or inspect local redacted application status.")
         track.add_argument("manifest", type=Path)
@@ -124,17 +127,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.action == "inspect":
         from aihawk.academic_inspect import run_interactive_inspection
 
-        return run_interactive_inspection(args.manifest, args.output)
+        return run_interactive_inspection(args.manifest, args.output, persistent=args.persistent)
 
     if args.action == "autofill-stages":
         from aihawk.academic_stages import run_interactive_journey
 
-        return run_interactive_journey(args.manifest)
+        return run_interactive_journey(args.manifest, persistent=args.persistent)
 
     if args.action == "autofill":
         from aihawk.academic_browser import run_interactive
 
-        return run_interactive(args.manifest)
+        return run_interactive(args.manifest, persistent=args.persistent)
 
     if args.action.startswith("track-"):
         import sys
