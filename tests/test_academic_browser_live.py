@@ -287,3 +287,64 @@ def test_real_chromium_inventory_discovers_hidden_file_control(tmp_path):
         assert "do-not-export" not in str(result)
         context.close()
         browser.close()
+
+
+def test_onchange_auto_upload_is_guarded_before_file_attachment(tmp_path):
+    from aihawk.academic_uploads import upload_one, upload_plan_from_manifest
+
+    sync_api = pytest.importorskip("playwright.sync_api")
+    (tmp_path / "auto.pdf").write_bytes(b"%PDF-1.4 test only")
+    url = "https://admissions.uni.example.edu/apply"
+    manifest = {
+        "title": "Synthetic auto-upload applicant",
+        "official_application_url": url,
+        "official_hosts": ["uni.example.edu"],
+        "applicant_id": "synthetic",
+        "fields": {},
+        "attachments": ["auto.pdf"],
+        "portal_uploads": [{
+            "field": "auto.pdf", "input_selector": "#auto",
+            "upload_button_selector": "#auto-upload", "container_selector": "#area",
+            "receipt_selector": ".file a", "remove_selector": "button.remove",
+            "expected_path": "/apply", "upload_endpoint_path": "/file/ajax",
+        }],
+    }
+    plan = upload_plan_from_manifest(manifest, manifest_dir=tmp_path)
+    html = """<section id="area"><input id="auto" type="file" hidden>
+      <button type="button" id="auto-upload">Upload</button>
+      <div class="file"></div></section>
+      <button id="final-submit" type="submit">Submit application</button>
+      <script>
+      document.querySelector('#auto').addEventListener('change',async function() {
+        fetch('/submission',{method:'POST',body:'should-be-blocked'}).catch(()=>{});
+        const res=await fetch('/file/ajax',{method:'POST',body:'approved-test-only'});
+        if(res.ok){
+          const file=this.files[0];
+          document.querySelector('.file').innerHTML='<a>'+file.name+'</a>';
+          const remove=document.createElement('button');
+          remove.className='remove';remove.textContent='Remove';
+          document.querySelector('#area').append(remove);
+        }
+      });
+      </script>"""
+    intercepted = []
+    with sync_api.sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        context = browser.new_context(service_workers="block")
+        def synthetic(route):
+            intercepted.append(route.request.url)
+            if route.request.url == url:
+                route.fulfill(content_type="text/html", body=html)
+            elif route.request.url.endswith("/file/ajax"):
+                route.fulfill(content_type="application/json", body='{"ok":true}')
+            else:
+                route.fulfill(status=400, body="unexpected")
+        context.route("**/*", synthetic)
+        page = context.new_page()
+        page.goto(url)
+        assert upload_one(page, context, plan, plan.bindings[0]) == "uploaded"
+        assert "/file/ajax" in " ".join(intercepted)
+        assert not any(url.endswith("/submission") for url in intercepted)
+        assert page.locator("#final-submit").count() == 1
+        context.close()
+        browser.close()
