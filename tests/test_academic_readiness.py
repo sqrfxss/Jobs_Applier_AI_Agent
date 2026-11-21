@@ -71,3 +71,26 @@ def test_writes_json_without_changing_source(tmp_path):
 def test_empty_or_invalid_inventory_is_rejected():
     with pytest.raises(PortalPreparationError, match="inspectable"):
         audit_redacted_snapshot("Verified host: "+HOST+"\nNo valid fields", expected_host=HOST)
+
+
+def test_bmai_unheaded_language_and_fellow_sections_are_not_misattributed():
+    snapshot = """Verified host: mps.cloud.opencampus.net
+001|Hyperlink|Hide 4.3 Additional Research Project|
+002|Text|Proof of Language Proficiency|
+003|Hyperlink|- None -|
+004|Text|First Preference|
+005|Hyperlink|- None -|
+006|Text|Second Preference|
+007|Hyperlink|- None -|
+008|Text|Third Preference|
+009|Hyperlink|- None -|
+010|Edit|Other notes|[HAS_VALUE; REDACTED]
+"""
+    report = audit_redacted_snapshot(snapshot, expected_host="mps.cloud.opencampus.net")
+    sections = [(x["label"], x["section"]) for x in report["unset_selects_requiring_review"]]
+    assert sections == [
+        ("Proof of Language Proficiency", "7 Language"),
+        ("First Preference", "8 PhD preferences"),
+        ("Second Preference", "8 PhD preferences"),
+        ("Third Preference", "8 PhD preferences"),
+    ]
