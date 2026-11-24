@@ -18,7 +18,8 @@ TODAY = date(2026, 11, 20)
 
 def base():
     return ProgrammeConditions(
-        institution="Example University", programme="MSc",
+        institution="Example University",
+        programme="MSc",
         deadline=date(2027, 3, 1),
         accepted_languages=(LanguageRule("TOEFL iBT Home Edition", 90),),
         legalization=DocumentTiming.ENROLMENT,
@@ -37,7 +38,8 @@ def test_exact_test_format_is_required():
 
 def test_home_edition_accepted_when_explicit():
     result = assess_conditions(
-        base(), CandidateConditions(language_test="TOEFL iBT Home Edition", language_score=95, certified_translations=True, legalized=True),
+        base(),
+        CandidateConditions(language_test="TOEFL iBT Home Edition", language_score=95, certified_translations=True, legalized=True),
         today=TODAY,
     )
     assert result.verdict is Verdict.ELIGIBLE
@@ -45,7 +47,8 @@ def test_home_edition_accepted_when_explicit():
 
 def test_legalization_at_enrolment_not_an_application_failure():
     result = assess_conditions(
-        base(), CandidateConditions(language_test="TOEFL iBT Home Edition", language_score=95, legalized=False),
+        base(),
+        CandidateConditions(language_test="TOEFL iBT Home Edition", language_score=95, legalized=False),
         today=TODAY,
     )
     assert result.verdict is Verdict.NEEDS_REVIEW
@@ -54,6 +57,7 @@ def test_legalization_at_enrolment_not_an_application_failure():
 
 def test_legalization_due_at_application_requires_check():
     from dataclasses import replace
+
     program = replace(base(), legalization=DocumentTiming.APPLICATION)
     result = assess_conditions(program, CandidateConditions(language_test="TOEFL iBT Home Edition", language_score=99, legalized=False), today=TODAY)
     assert result.verdict is Verdict.NEEDS_REVIEW
@@ -62,6 +66,7 @@ def test_legalization_due_at_application_requires_check():
 
 def test_unknown_deposit_not_assumed_free():
     from dataclasses import replace
+
     report = assess_conditions(
         replace(base(), seat_deposit=None),
         CandidateConditions(language_test="TOEFL iBT Home Edition", language_score=99, legalized=True),
@@ -73,6 +78,7 @@ def test_unknown_deposit_not_assumed_free():
 
 def test_family_visa_is_independent_review():
     from dataclasses import replace
+
     result = assess_conditions(
         replace(base(), spouse_visa_policy_verified=False),
         CandidateConditions(language_test="TOEFL iBT Home Edition", language_score=99, legalized=True, spouse_accompanying=True),
@@ -83,6 +89,7 @@ def test_family_visa_is_independent_review():
 
 def test_expired_deadline_is_ineligible():
     from dataclasses import replace
+
     result = assess_conditions(
         replace(base(), deadline=date(2026, 11, 19)),
         CandidateConditions(language_test="TOEFL iBT Home Edition", language_score=99, legalized=True),

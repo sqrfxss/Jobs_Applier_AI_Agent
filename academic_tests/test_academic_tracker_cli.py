@@ -1,4 +1,5 @@
 """Record operator-reported statuses through the public CLI, without network."""
+
 from __future__ import annotations
 
 import json

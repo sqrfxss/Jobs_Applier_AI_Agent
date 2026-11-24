@@ -1,4 +1,5 @@
 """Test every executable form-preparation boundary without a live university."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,26 +26,37 @@ class Locator:
         self.value = None
         self.upload_name = None
 
-    def count(self): return self.matches
-    def is_visible(self): return self.visible
-    def is_enabled(self): return self.enabled
+    def count(self):
+        return self.matches
+
+    def is_visible(self):
+        return self.visible
+
+    def is_enabled(self):
+        return self.enabled
+
     def evaluate(self, expression):
         if expression == "(element) => element.tagName.toLowerCase()":
             return self.tag
         if "element.files" in expression:
             return [self.upload_name] if self.upload_name else []
         raise AssertionError(f"Unexpected DOM evaluation: {expression}")
+
     def get_attribute(self, name):
         return self.field_type if name == "type" else None
+
     def fill(self, value, **kwargs):
         self.value = value
         self.calls.append(("fill", value))
+
     def select_option(self, **kwargs):
         self.value = kwargs["value"]
         self.calls.append(("select", kwargs["value"]))
+
     def set_input_files(self, path, **kwargs):
         self.upload_name = Path(path).name
         self.calls.append(("upload", path))
+
     def input_value(self, **kwargs):
         return self.value
 
@@ -93,13 +105,16 @@ def test_preparation_only_fills_explicitly_mapped_fields(tmp_path):
     assert page.other_actions == []
 
 
-@pytest.mark.parametrize("url", (
-    "https://uni.example.edu.attacker.test/apply",
-    "http://applications.uni.example.edu/apply",
-    "https://localhost/apply",
-    "https://127.0.0.1/apply",
-    "https://uni.example.edu:1234/apply",
-))
+@pytest.mark.parametrize(
+    "url",
+    (
+        "https://uni.example.edu.attacker.test/apply",
+        "http://applications.uni.example.edu/apply",
+        "https://localhost/apply",
+        "https://127.0.0.1/apply",
+        "https://uni.example.edu:1234/apply",
+    ),
+)
 def test_rejects_untrusted_portal_targets(url):
     with pytest.raises(PortalPreparationError):
         verified_portal_host(url, ("uni.example.edu",))
@@ -121,13 +136,16 @@ def test_rejects_unknown_or_inferred_values(tmp_path):
         plan_from_manifest(data, manifest_dir=tmp_path)
 
 
-@pytest.mark.parametrize("tag,kind,field_type", [
-    ("button", "text", "submit"),
-    ("input", "text", "hidden"),
-    ("input", "text", "password"),
-    ("input", "select", "text"),
-    ("textarea", "upload", "text"),
-])
+@pytest.mark.parametrize(
+    "tag,kind,field_type",
+    [
+        ("button", "text", "submit"),
+        ("input", "text", "hidden"),
+        ("input", "text", "password"),
+        ("input", "select", "text"),
+        ("textarea", "upload", "text"),
+    ],
+)
 def test_refuses_unsafe_element_types(tmp_path, tag, kind, field_type):
     data = document()
     data["portal_bindings"] = [{"field": "cv.pdf" if kind == "upload" else "full_name", "selector": "#name", "kind": kind}]
@@ -150,8 +168,11 @@ class FakeRoute:
         self.calls = []
         self.request = object()
 
-    def abort(self): self.calls.append("abort")
-    def continue_(self): self.calls.append("continue")
+    def abort(self):
+        self.calls.append("abort")
+
+    def continue_(self):
+        self.calls.append("continue")
 
 
 def test_guard_denies_every_network_request_during_fill():
@@ -168,6 +189,7 @@ def test_no_bindings_denied(tmp_path):
     payload["portal_bindings"] = []
     with pytest.raises(PortalPreparationError, match="nonempty"):
         plan_from_manifest(payload, manifest_dir=tmp_path)
+
 
 def test_mapping_edit_invalidates_approval_fingerprint(tmp_path):
     original = plan(tmp_path)

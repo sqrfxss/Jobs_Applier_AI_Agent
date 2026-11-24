@@ -44,15 +44,21 @@ def test_preview_command(tmp_path):
 
 def test_capture_requires_real_matching_phrase(monkeypatch):
     import aihawk.academic_ops as ops
+
     page = PageSnapshot(
-        "https://uni.example.edu/req", "https://uni.example.edu/req",
-        datetime(2026, 11, 20, tzinfo=UTC), "0" * 64,
-        "text/html", "TOEFL Home Edition is accepted here."
+        "https://uni.example.edu/req",
+        "https://uni.example.edu/req",
+        datetime(2026, 11, 20, tzinfo=UTC),
+        "0" * 64,
+        "text/html",
+        "TOEFL Home Edition is accepted here.",
     )
     monkeypatch.setattr(ops, "fetch_official_page", lambda *a, **kw: page)
     evidence = evidence_capture(
-        "https://uni.example.edu/req", official_hosts=("uni.example.edu",),
-        exact_phrase="TOEFL Home Edition", requirement="accepted_language_tests",
+        "https://uni.example.edu/req",
+        official_hosts=("uni.example.edu",),
+        exact_phrase="TOEFL Home Edition",
+        requirement="accepted_language_tests",
     )
     assert evidence["exact_phrase_found"] is True
     assert evidence["interpretation_reviewed"] is False
@@ -60,17 +66,19 @@ def test_capture_requires_real_matching_phrase(monkeypatch):
 
 def test_evidence_unmatched_phrase_fails(monkeypatch):
     import aihawk.academic_ops as ops
+
     page = PageSnapshot("a", "b", datetime.now(UTC), "0" * 64, "text/html", "IELTS only.")
     monkeypatch.setattr(ops, "fetch_official_page", lambda *a, **kw: page)
     with pytest.raises(ValueError):
-        evidence_capture("https://uni.example.edu", official_hosts=("uni.example.edu",),
-            exact_phrase="TOEFL", requirement="accepted_language_tests")
+        evidence_capture("https://uni.example.edu", official_hosts=("uni.example.edu",), exact_phrase="TOEFL", requirement="accepted_language_tests")
+
 
 def test_attachment_cannot_escape_manifest_directory(tmp_path):
     payload = manifest()
     payload["attachments"] = ["../private.txt"]
     with pytest.raises(ValueError, match="inside the private"):
         application_from_manifest(payload, manifest_dir=tmp_path)
+
 
 def test_preview_displays_exact_mappings_and_digest(tmp_path):
     payload = manifest()
@@ -113,15 +121,21 @@ def test_redacted_snapshot_cli_does_not_open_browser(tmp_path):
     snapshot = tmp_path / "snapshot.txt"
     destination = tmp_path / "historical-status.json"
     snapshot.write_text(
-        "Verified host: admissions.uni.example.edu\n"
-        "001|Text|Email|\n"
-        "002|Edit|Email *|[BLANK]\n",
+        "Verified host: admissions.uni.example.edu\n001|Text|Email|\n002|Edit|Email *|[BLANK]\n",
         encoding="utf-8",
     )
-    assert main([
-        "audit-snapshot", str(snapshot), str(destination),
-        "--host", "admissions.uni.example.edu",
-    ]) == 0
+    assert (
+        main(
+            [
+                "audit-snapshot",
+                str(snapshot),
+                str(destination),
+                "--host",
+                "admissions.uni.example.edu",
+            ]
+        )
+        == 0
+    )
     data = json.loads(destination.read_text(encoding="utf-8"))
     assert data["live_portal_verified"] is False
     assert data["counts"]["required_blank"] == 1
@@ -149,17 +163,26 @@ def test_motivation_letter_pdf_flag_uses_reviewed_applicant_and_institution(tmp_
 
     monkeypatch.setattr(motivation, "deliver", deliver_fake)
     monkeypatch.setattr(
-        motivation, "load_brief",
-        lambda path: type("Brief", (), {
-            "applicant_name": "Example Person",
-            "institution": "Example University",
-        })(),
+        motivation,
+        "load_brief",
+        lambda path: type(
+            "Brief",
+            (),
+            {
+                "applicant_name": "Example Person",
+                "institution": "Example University",
+            },
+        )(),
     )
     monkeypatch.setattr(pdf_module, "export_letter_pdf", export_fake)
     assert main(["motivation-letter", str(brief), str(docx), "--pdf"]) == 0
     assert observed[0][0] == "draft"
     assert observed[1] == (
-        "pdf", docx, docx.with_suffix(".pdf"), "Example Person", "Example University",
+        "pdf",
+        docx,
+        docx.with_suffix(".pdf"),
+        "Example Person",
+        "Example University",
     )
     assert docx.with_suffix(".pdf").exists()
 
@@ -171,4 +194,4 @@ def test_motivation_letter_does_not_export_pdf_without_explicit_flag(tmp_path, m
     docx = tmp_path / "letter.docx"
     monkeypatch.setattr(motivation, "deliver", lambda *a, **kw: docx)
     monkeypatch.setattr(pdf_module, "export_letter_pdf", lambda *a, **kw: pytest.fail("Unexpected PDF export"))
-    assert main(["motivation-letter", str(tmp_path/"position.json"), str(docx)]) == 0
+    assert main(["motivation-letter", str(tmp_path / "position.json"), str(docx)]) == 0

@@ -4,6 +4,7 @@ Passwords and CAPTCHA responses are entered directly at the university site.
 The agent never asks for them in chat, scrapes their values, or logs them.
 Usage: python -m aihawk.academic_auth_cli <manifest.json> [--timeout 900]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -12,7 +13,8 @@ import time
 from pathlib import Path
 
 from aihawk.academic_auth_gate import (
-    AuthChallenge, detect_auth_challenge, save_public_checkpoint,
+    detect_auth_challenge,
+    save_public_checkpoint,
 )
 from aihawk.academic_background import exclusive_session
 from aihawk.academic_browser import PortalPreparationError, verified_portal_host
@@ -33,9 +35,7 @@ def run_visible_auth_session(manifest: Path, *, timeout: int = 900) -> dict:
 
     with exclusive_session(root):
         with sync_playwright() as playwright:
-            context = launch_academic_context(
-                playwright, manifest_dir=root, headless=False
-            )
+            context = launch_academic_context(playwright, manifest_dir=root, headless=False)
             try:
                 page = context.pages[0] if context.pages else context.new_page()
                 page.goto(url, wait_until="commit", timeout=45000)
@@ -83,13 +83,11 @@ def run_visible_auth_session(manifest: Path, *, timeout: int = 900) -> dict:
                         # Password and OTP are always entered by the applicant.
                         hint = data.get("existing_university_account_identifier")
                         if hint and not username_prefilled and challenge.kind in ("sign_in", "account_or_login"):
-                            on_kuleuven_idp = page.url.startswith(
-                                "https://idp.kuleuven.be/idpx/profile/"
-                            )
+                            on_kuleuven_idp = page.url.startswith("https://idp.kuleuven.be/idpx/profile/")
                             selector = (
-                                'input#input[name="input"]' if on_kuleuven_idp
-                                else 'input[autocomplete="username"],input[name="username"],'
-                                     'input[id="username"],input[name="userId"],input[id="userId"]'
+                                'input#input[name="input"]'
+                                if on_kuleuven_idp
+                                else 'input[autocomplete="username"],input[name="username"],input[id="username"],input[name="userId"],input[id="userId"]'
                             )
                             identifier = page.locator(selector)
                             if identifier.count() == 1 and identifier.is_visible():
@@ -107,8 +105,7 @@ def run_visible_auth_session(manifest: Path, *, timeout: int = 900) -> dict:
                         if challenge.kind != last_action:
                             save_public_checkpoint(checkpoint, challenge)
                             print(
-                                f"USER_ACTION_REQUIRED {challenge.kind}: "
-                                f"{challenge.instructions}",
+                                f"USER_ACTION_REQUIRED {challenge.kind}: {challenge.instructions}",
                                 flush=True,
                             )
                             last_action = challenge.kind
@@ -134,9 +131,7 @@ def run_visible_auth_session(manifest: Path, *, timeout: int = 900) -> dict:
                                 "submission_confirmed": False,
                                 "credentials_stored": False,
                             }
-                            checkpoint.write_text(
-                                json.dumps(record, indent=2) + "\n", encoding="utf-8"
-                            )
+                            checkpoint.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
                             print("LOGIN_VERIFICATION_PENDING;BROWSER_REMAINS_OPEN", flush=True)
                             last_action = "verification_pending"
                     time.sleep(1.5)

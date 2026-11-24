@@ -6,7 +6,8 @@ from aihawk.academic_portal import open_manual_portal, render_preview, save_prev
 
 def preview():
     return ApplicationPreview(
-        "https://admissions.uni.example.edu/form", "person",
+        "https://admissions.uni.example.edu/form",
+        "person",
         (("degree", "MSc"), ("notes", "<script>alert(1)</script>")),
         ("sha256:deadbeef",),
     )
@@ -31,23 +32,26 @@ def test_rejects_portal_host_spoof():
 def test_never_opens_non_interactive():
     opened = []
     with pytest.raises(PermissionError):
-        open_manual_portal(preview(), official_hosts=("uni.example.edu",),
-            is_interactive=False, browser_open=lambda url: opened.append(url))
+        open_manual_portal(preview(), official_hosts=("uni.example.edu",), is_interactive=False, browser_open=lambda url: opened.append(url))
     assert not opened
 
 
 def test_rejects_wrong_challenge_without_browser():
     opened = []
-    result = open_manual_portal(preview(), official_hosts=("uni.example.edu",),
-        is_interactive=True, prompt=lambda _: "wrong", browser_open=lambda url: opened.append(url))
+    result = open_manual_portal(
+        preview(), official_hosts=("uni.example.edu",), is_interactive=True, prompt=lambda _: "wrong", browser_open=lambda url: opened.append(url)
+    )
     assert result is False and not opened
 
 
 def test_manual_handoff_requires_fingerprint_challenge():
     opened = []
-    result = open_manual_portal(preview(), official_hosts=("uni.example.edu",),
+    result = open_manual_portal(
+        preview(),
+        official_hosts=("uni.example.edu",),
         is_interactive=True,
         prompt=lambda _: "OPEN " + preview().fingerprint()[-12:],
-        browser_open=lambda url: opened.append(url) or True)
+        browser_open=lambda url: opened.append(url) or True,
+    )
     assert result is True
     assert opened == [preview().opportunity_url]

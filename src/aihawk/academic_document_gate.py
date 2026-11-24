@@ -7,14 +7,17 @@ Before a generated document is published or uploaded:
 - exported PDF must have an approved, matching DOCX source.
 This does not rewrite external diplomas/transcripts or immutable source CVs.
 """
+
 from __future__ import annotations
 
 import re
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
+
 class DocumentQualityError(ValueError):
     """An authored document may not be delivered or uploaded."""
+
 
 WRITING_NAME = re.compile(
     r"(?i)(motivation|cover[_ -]?letter|research[_ -]?(?:plan|concept|proposal)"
@@ -24,6 +27,7 @@ WRITING_NAME = re.compile(
 EXEMPT_STYLES = ("title", "subtitle", "heading", "toc", "caption", "header", "footer")
 MIN_BODY_WORDS = 13
 
+
 def is_authored_writing(path: Path) -> bool:
     """Detect generated writing without treating original CV/diploma PDFs as generated writing."""
     path = Path(path)
@@ -31,22 +35,20 @@ def is_authored_writing(path: Path) -> bool:
         return True
     if path.suffix.casefold() != ".pdf":
         return False
-    return bool(
-        WRITING_NAME.search(path.name)
-        or path.with_suffix(".docx").is_file()
-        or path.with_suffix(".review.json").is_file()
-    )
+    return bool(WRITING_NAME.search(path.name) or path.with_suffix(".docx").is_file() or path.with_suffix(".review.json").is_file())
+
 
 def _normal_style(paragraph):
     return not paragraph.style.name.casefold().startswith(EXEMPT_STYLES)
 
+
 def _alignment(paragraph):
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
     if paragraph.alignment is not None:
         return paragraph.alignment
     if paragraph.style.paragraph_format.alignment is not None:
         return paragraph.style.paragraph_format.alignment
     return None
+
 
 def validate_docx(path: Path) -> Path:
     """Require justification and no document-level notes, running footers or watermarks."""
@@ -106,6 +108,7 @@ def validate_docx(path: Path) -> Path:
     except (BadZipFile, KeyError, ValueError, OSError) as exc:
         raise DocumentQualityError("Word structure could not be inspected; output blocked.") from exc
 
+
 def validate_pdf(path: Path, *, source_docx: Path | None = None) -> Path:
     """Block PDF without a compliant editable source and check exported text and footer area."""
     path = Path(path)
@@ -133,11 +136,13 @@ def validate_pdf(path: Path, *, source_docx: Path | None = None) -> Path:
                         raise DocumentQualityError(f"PDF page {page_index + 1} has footer/bottom-margin text.")
                 words_pdf.extend(re.findall(r"\b[a-z0-9]+\b", page.get_text().casefold()))
         from docx import Document
+
         source_text = "\n".join(p.text for p in Document(source).paragraphs)
         words_doc = re.findall(r"\b[a-z0-9]+\b", source_text.casefold())
         if not words_pdf or not words_doc:
             raise DocumentQualityError("PDF/source text extraction failed.")
         from collections import Counter
+
         matched = sum((Counter(words_doc) & Counter(words_pdf)).values())
         if matched / len(words_doc) < 0.85:
             raise DocumentQualityError("Exported PDF does not preserve the approved Word text.")
@@ -146,6 +151,7 @@ def validate_pdf(path: Path, *, source_docx: Path | None = None) -> Path:
         raise
     except Exception as exc:
         raise DocumentQualityError("Rendered PDF could not be verified; sending blocked.") from exc
+
 
 def require_writing_preflight(path: Path, *, source_docx: Path | None = None) -> Path:
     """Single blocking call for both generated document output and portal uploads."""

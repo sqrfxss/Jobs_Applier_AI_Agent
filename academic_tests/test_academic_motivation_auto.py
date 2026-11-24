@@ -1,4 +1,5 @@
 """Queue-to-letter automation: synthetic CV/source; no applicant information or API calls."""
+
 from __future__ import annotations
 
 import json
@@ -61,12 +62,18 @@ def test_official_excerpt_is_bounded():
 
 def test_queue_generates_individual_directories_without_submitting(tmp_path, monkeypatch):
     import aihawk.academic_document_gate as gate
+
     monkeypatch.setattr(gate, "require_writing_preflight", lambda path: path)
     import aihawk.academic_motivation_auto as auto
-    monkeypatch.setattr(auto, "_cv_facts", lambda path: [
-        "MSc in Sports Biomechanics with experimental signal processing",
-        "Research Programmer using MATLAB and Python",
-    ])
+
+    monkeypatch.setattr(
+        auto,
+        "_cv_facts",
+        lambda path: [
+            "MSc in Sports Biomechanics with experimental signal processing",
+            "Research Programmer using MATLAB and Python",
+        ],
+    )
     produced = []
 
     def mock_deliver(brief, output, **kwargs):
@@ -98,6 +105,7 @@ def test_queue_generates_individual_directories_without_submitting(tmp_path, mon
 
 def test_failed_official_evidence_does_not_generate_generic_letter(tmp_path, monkeypatch):
     import aihawk.academic_motivation_auto as auto
+
     monkeypatch.setattr(auto, "_cv_facts", lambda path: ["MSc biomechanics", "Research programmer"])
     invoked = []
     monkeypatch.setattr(auto, "deliver", lambda *a, **kw: invoked.append(a))
@@ -122,37 +130,48 @@ def test_position_fails_closed_on_unsupported_cv_reference(tmp_path):
 
 def test_prior_reviewed_brief_never_silently_overwritten(tmp_path, monkeypatch):
     import aihawk.academic_motivation_auto as auto
+
     monkeypatch.setattr(auto, "_cv_facts", lambda path: ["Degree", "Research"])
     p = queue(tmp_path)
     spec = json.loads(p.read_text())["positions"][0]
-    _, letter_path = prepare_position(tmp_path, "Example Researcher", tmp_path/"synthetic.pdf", spec, fetcher=official)
+    _, letter_path = prepare_position(tmp_path, "Example Researcher", tmp_path / "synthetic.pdf", spec, fetcher=official)
     old = letter_path.parent / "position-brief.json"
     content = json.loads(old.read_text())
     content["applicant_facts"] = ["Human-reviewed claim"]
     old.write_text(json.dumps(content))
     with pytest.raises(MotivationError, match="Review the prior"):
-        prepare_position(tmp_path, "Example Researcher", tmp_path/"synthetic.pdf", spec, fetcher=official)
+        prepare_position(tmp_path, "Example Researcher", tmp_path / "synthetic.pdf", spec, fetcher=official)
 
 
 def test_cli_batch_handles_partial_errors_without_claiming_success(tmp_path, monkeypatch):
     import aihawk.academic_motivation_auto as auto
     from aihawk.academic_ops import main
-    monkeypatch.setattr(auto, "process_queue", lambda *a, **kw: {
-        "results": [{"status": "error"}, {"status": "drafted_review_required"}],
-    })
-    assert main(["motivation-auto", str(tmp_path/"queue.json"), "--model", "test-model"]) == 1
+
+    monkeypatch.setattr(
+        auto,
+        "process_queue",
+        lambda *a, **kw: {
+            "results": [{"status": "error"}, {"status": "drafted_review_required"}],
+        },
+    )
+    assert main(["motivation-auto", str(tmp_path / "queue.json"), "--model", "test-model"]) == 1
 
 
 def test_pdf_only_position_exports_verified_format_without_rewriting_docx(tmp_path, monkeypatch):
     import aihawk.academic_document_gate as gate
+
     monkeypatch.setattr(gate, "require_writing_preflight", lambda path: path)
     import aihawk.academic_motivation_auto as auto
     import aihawk.academic_motivation_pdf as pdfmod
 
-    monkeypatch.setattr(auto, "_cv_facts", lambda path: [
-        "MSc in sports biomechanics with measurement models",
-        "MATLAB and Python research programming",
-    ])
+    monkeypatch.setattr(
+        auto,
+        "_cv_facts",
+        lambda path: [
+            "MSc in sports biomechanics with measurement models",
+            "MATLAB and Python research programming",
+        ],
+    )
     source = queue(tmp_path)
     values = json.loads(source.read_text(encoding="utf-8"))
     values["positions"] = [values["positions"][0]]
@@ -187,25 +206,36 @@ def test_pdf_only_position_exports_verified_format_without_rewriting_docx(tmp_pa
 
 def test_pdf_only_batch_recovers_from_existing_docx_without_rewriting(tmp_path, monkeypatch):
     import aihawk.academic_document_gate as gate
+
     monkeypatch.setattr(gate, "require_writing_preflight", lambda path: path)
     import aihawk.academic_motivation_auto as auto
     import aihawk.academic_motivation_pdf as pdfmod
-    monkeypatch.setattr(auto, "_cv_facts", lambda path: [
-        "MSc scientific computing", "Doctoral research in medical imaging",
-    ])
+
+    monkeypatch.setattr(
+        auto,
+        "_cv_facts",
+        lambda path: [
+            "MSc scientific computing",
+            "Doctoral research in medical imaging",
+        ],
+    )
     q = queue(tmp_path)
     data = json.loads(q.read_text(encoding="utf-8"))
     data["positions"] = [data["positions"][0]]
     data["positions"][0]["portal_allowed_extensions"] = [".pdf"]
     q.write_text(json.dumps(data), encoding="utf-8")
     _, word = prepare_position(
-        tmp_path, "Example Researcher", tmp_path/"synthetic.pdf",
-        data["positions"][0], fetcher=official,
+        tmp_path,
+        "Example Researcher",
+        tmp_path / "synthetic.pdf",
+        data["positions"][0],
+        fetcher=official,
     )
     word.write_bytes(b"previously approved document")
     monkeypatch.setattr(auto, "deliver", lambda *a, **kw: pytest.fail("Should never regenerate existing Word"))
     monkeypatch.setattr(
-        pdfmod, "export_letter_pdf",
+        pdfmod,
+        "export_letter_pdf",
         lambda docx, out, **kw: out.write_bytes(b"%PDF-1.4 synthetic approved"),
     )
     outcome = process_queue(q, fetcher=official)
@@ -216,6 +246,7 @@ def test_pdf_only_batch_recovers_from_existing_docx_without_rewriting(tmp_path, 
 @pytest.mark.parametrize("allowed", [[], ["exe"], ["pdf;exe"], ["../pdf"], ["docx", 42]])
 def test_unsupported_or_malformed_portal_formats_rejected_before_writing(tmp_path, monkeypatch, allowed):
     import aihawk.academic_motivation_auto as auto
+
     monkeypatch.setattr(auto, "_cv_facts", lambda path: ["Research programmer", "Thesis in biomechanics"])
     monkeypatch.setattr(auto, "deliver", lambda *a, **kw: pytest.fail("Do not draft for unsupported upload rules"))
     q = queue(tmp_path)

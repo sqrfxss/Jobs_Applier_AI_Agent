@@ -84,7 +84,12 @@ class LocalApplicationRegistry:
         return ApplicationStatus(*row) if row else None
 
     def record_prepared(
-        self, preview: ApplicationPreview, *, title: str, hosts: tuple[str, ...], now: datetime,
+        self,
+        preview: ApplicationPreview,
+        *,
+        title: str,
+        hosts: tuple[str, ...],
+        now: datetime,
     ) -> ApplicationStatus:
         host = verified_portal_host(preview.opportunity_url, hosts)
         ref = application_reference(preview, title)
@@ -104,8 +109,14 @@ class LocalApplicationRegistry:
         return self.state_for(ref)
 
     def record_manual_submission(
-        self, preview: ApplicationPreview, *, title: str, now: datetime, human_attested: bool,
-        proof_path: Path | None = None, private_root: Path | None = None,
+        self,
+        preview: ApplicationPreview,
+        *,
+        title: str,
+        now: datetime,
+        human_attested: bool,
+        proof_path: Path | None = None,
+        private_root: Path | None = None,
     ) -> ApplicationStatus:
         if human_attested is not True:
             raise PermissionError("A direct human attestation is required.")
@@ -114,7 +125,8 @@ class LocalApplicationRegistry:
         if existing is None or existing.state != "prepared":
             raise DuplicateApplicationError("No unsubmitted prepared application found for this programme.")
         fingerprint = self.db.execute(
-            "SELECT fingerprint FROM applications WHERE reference=?", (ref,),
+            "SELECT fingerprint FROM applications WHERE reference=?",
+            (ref,),
         ).fetchone()[0]
         if fingerprint != preview.fingerprint():
             raise PermissionError("Application changed after it was prepared. Re-review is required.")
@@ -136,10 +148,12 @@ class LocalApplicationRegistry:
         return self.state_for(ref)
 
     def audit(self, reference: str) -> tuple[tuple[str, str, str | None], ...]:
-        return tuple(self.db.execute(
-            "SELECT action,at,document_sha256 FROM events WHERE reference=? ORDER BY id",
-            (reference,),
-        ).fetchall())
+        return tuple(
+            self.db.execute(
+                "SELECT action,at,document_sha256 FROM events WHERE reference=? ORDER BY id",
+                (reference,),
+            ).fetchall()
+        )
 
 
 def _timestamp(now: datetime) -> str:

@@ -7,23 +7,28 @@ from aihawk.academic_cli import evaluate_document, main
 def _payload():
     return {
         "applicant": {"language_test": "TOEFL Home Edition", "language_score": 100, "documents_legalized": False},
-        "opportunities": [{
-            "institution": "Example University",
-            "program": "MSc Example",
-            "official_hosts": ["example.edu"],
-            "requirements": {
-                "deadline": "2027-02-01",
-                "accepted_language_tests": ["TOEFL Home Edition"],
-                "minimum_language_score": 90,
-                "requires_legalization_at_application": False,
-            },
-            "sources": [{
-                "url": "https://example.edu/admissions",
-                "retrieved_at": "2026-11-19T12:00:00+00:00",
-                "requirement": key,
-                "evidence": "Official institution document (placeholder for integration tests)",
-            } for key in ("deadline", "accepted_language_tests", "minimum_language_score", "requires_legalization_at_application")],
-        }],
+        "opportunities": [
+            {
+                "institution": "Example University",
+                "program": "MSc Example",
+                "official_hosts": ["example.edu"],
+                "requirements": {
+                    "deadline": "2027-02-01",
+                    "accepted_language_tests": ["TOEFL Home Edition"],
+                    "minimum_language_score": 90,
+                    "requires_legalization_at_application": False,
+                },
+                "sources": [
+                    {
+                        "url": "https://example.edu/admissions",
+                        "retrieved_at": "2026-11-19T12:00:00+00:00",
+                        "requirement": key,
+                        "evidence": "Official institution document (placeholder for integration tests)",
+                    }
+                    for key in ("deadline", "accepted_language_tests", "minimum_language_score", "requires_legalization_at_application")
+                ],
+            }
+        ],
     }
 
 

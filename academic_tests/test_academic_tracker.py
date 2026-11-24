@@ -1,4 +1,5 @@
 """Local database, duplicate-submission and evidence-isolation tests."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -18,14 +19,17 @@ NOW = datetime(2026, 11, 20, tzinfo=UTC)
 def preview(value="MSc"):
     return ApplicationPreview(
         "https://admissions.uni.example.edu/apply?session=private",
-        "private-person-id", (("programme", value), ("email", "private@invalid.test")),
+        "private-person-id",
+        (("programme", value), ("email", "private@invalid.test")),
     )
 
 
 def record(db, value="MSc"):
     return db.record_prepared(
-        preview(value), title="Human Movement Studies",
-        hosts=("uni.example.edu",), now=NOW,
+        preview(value),
+        title="Human Movement Studies",
+        hosts=("uni.example.edu",),
+        now=NOW,
     )
 
 
@@ -77,8 +81,12 @@ def test_evidence_is_hashed_not_retained(tmp_path):
     with LocalApplicationRegistry(tmp_path / "records.sqlite") as db:
         item = record(db)
         outcome = db.record_manual_submission(
-            preview(), title="Human Movement Studies", now=NOW, human_attested=True,
-            proof_path=proof, private_root=tmp_path,
+            preview(),
+            title="Human Movement Studies",
+            now=NOW,
+            human_attested=True,
+            proof_path=proof,
+            private_root=tmp_path,
         )
         assert outcome.state == "proof_attached"
         events = db.audit(item.reference)
@@ -95,8 +103,12 @@ def test_disallow_external_evidence_file(tmp_path):
         record(db)
         with pytest.raises(ValueError, match="private"):
             db.record_manual_submission(
-                preview(), title="Human Movement Studies", now=NOW, human_attested=True,
-                proof_path=outside, private_root=private,
+                preview(),
+                title="Human Movement Studies",
+                now=NOW,
+                human_attested=True,
+                proof_path=outside,
+                private_root=private,
             )
 
 

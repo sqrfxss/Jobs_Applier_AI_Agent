@@ -13,12 +13,15 @@ def test_official_subdomain_accepted():
     assert validate_source(s, official_hosts=("uni.example.edu",), now=NOW) is s
 
 
-@pytest.mark.parametrize("url", [
-    "https://uni.example.edu.evil.test/program",
-    "http://uni.example.edu/program",
-    "https://user:password@uni.example.edu/program",
-    "https://uni.example.edu:8443/program",
-])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://uni.example.edu.evil.test/program",
+        "http://uni.example.edu/program",
+        "https://user:password@uni.example.edu/program",
+        "https://uni.example.edu:8443/program",
+    ],
+)
 def test_disallowed_sources(url):
     s = RequirementSource("Example", url, NOW, "English B2", "B2 required")
     with pytest.raises(ValueError):

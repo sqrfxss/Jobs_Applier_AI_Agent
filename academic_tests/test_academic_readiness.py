@@ -1,4 +1,5 @@
 """Redacted historical UIA snapshot audits never contact an actual university."""
+
 from __future__ import annotations
 
 import json
@@ -70,7 +71,7 @@ def test_writes_json_without_changing_source(tmp_path):
 
 def test_empty_or_invalid_inventory_is_rejected():
     with pytest.raises(PortalPreparationError, match="inspectable"):
-        audit_redacted_snapshot("Verified host: "+HOST+"\nNo valid fields", expected_host=HOST)
+        audit_redacted_snapshot("Verified host: " + HOST + "\nNo valid fields", expected_host=HOST)
 
 
 def test_bmai_unheaded_language_and_fellow_sections_are_not_misattributed():

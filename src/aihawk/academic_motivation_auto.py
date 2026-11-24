@@ -152,7 +152,7 @@ def prepare_position(
         "programme_evidence": [{"url": source.final_url, "excerpt": _official_excerpt(source, programme)}],
         "research_fit": [
             "Identify a specific methodological match supported by the applicant CV and the official description.",
-            "If this field is a research transition, acknowledge important disciplinary preparation gaps."
+            "If this field is a research transition, acknowledge important disciplinary preparation gaps.",
         ],
         "career_goal": "Pursue reproducible scientific research that addresses the concrete questions in the official position description.",
         "forbidden_organizations": position.get("forbidden_organizations", []),
@@ -170,11 +170,20 @@ def prepare_position(
         brief_path.write_text(json.dumps(brief, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     meta = directory / "official-source-audit.json"
     if not meta.exists():
-        meta.write_text(json.dumps({
-            "source_url": source.final_url, "retrieved_at": source.retrieved_at.isoformat(),
-            "sha256": source.sha256, "content_type": source.content_type,
-            "review_status": "SOURCE_CAPTURED_NOT_INTERPRETATION_APPROVED",
-        }, indent=2) + "\n", encoding="utf-8")
+        meta.write_text(
+            json.dumps(
+                {
+                    "source_url": source.final_url,
+                    "retrieved_at": source.retrieved_at.isoformat(),
+                    "sha256": source.sha256,
+                    "content_type": source.content_type,
+                    "review_status": "SOURCE_CAPTURED_NOT_INTERPRETATION_APPROVED",
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
     return brief_path, directory / "MotivationLetter_TimesNewRoman.docx"
 
 
@@ -183,9 +192,7 @@ def _required_portal_format(position: dict[str, Any]) -> str:
     allowed = position.get("portal_allowed_extensions")
     if allowed is None:
         return "docx"  # No site-specific conversion is authorized or implied.
-    if not isinstance(allowed, list) or not allowed or not all(
-        isinstance(ext, str) and re.fullmatch(r"\.?[a-zA-Z0-9]{1,12}", ext) for ext in allowed
-    ):
+    if not isinstance(allowed, list) or not allowed or not all(isinstance(ext, str) and re.fullmatch(r"\.?[a-zA-Z0-9]{1,12}", ext) for ext in allowed):
         raise MotivationError("Invalid official portal file-extension list.")
     normalized = {ext.casefold().lstrip(".") for ext in allowed}
     if "docx" in normalized:
@@ -213,10 +220,12 @@ def process_queue(
             final_path = output.with_suffix(".pdf") if required_format == "pdf" else output
             if final_path.exists():
                 from aihawk.academic_document_gate import require_writing_preflight
+
                 require_writing_preflight(final_path)
                 results.append({"official_url": identifier, "status": "already_drafted_review_required", "path": str(final_path)})
                 continue
             from aihawk.academic_document_gate import require_writing_preflight
+
             created = False
             if not output.exists():
                 draft = draft_provider(brief, position) if draft_provider is not None else None
@@ -227,15 +236,19 @@ def process_queue(
                 from aihawk.academic_motivation_pdf import export_letter_pdf
 
                 export_letter_pdf(
-                    output, final_path, expected_name=name,
+                    output,
+                    final_path,
+                    expected_name=name,
                     expected_institution=str(position["institution"]),
                 )
             require_writing_preflight(final_path)
-            results.append({
-                "official_url": identifier,
-                "status": "drafted_review_required" if created else "pdf_exported_review_required",
-                "path": str(final_path),
-            })
+            results.append(
+                {
+                    "official_url": identifier,
+                    "status": "drafted_review_required" if created else "pdf_exported_review_required",
+                    "path": str(final_path),
+                }
+            )
         except (OSError, ValueError, RuntimeError) as error:
             results.append({"official_url": identifier, "status": "error", "reason": type(error).__name__ + ": " + str(error)[:240]})
     summary = {

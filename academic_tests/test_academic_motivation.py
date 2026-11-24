@@ -1,4 +1,5 @@
 """Private, evidence-led motivation letter generation; synthetic applicant only."""
+
 from __future__ import annotations
 
 import json
@@ -76,10 +77,12 @@ def make_brief(tmp_path, **overrides):
             "Master's thesis on instrumented walking measurements",
             "Python and MATLAB analysis of biomechanical time series",
         ],
-        "programme_evidence": [{
-            "url": "https://uni.example.edu/programme",
-            "excerpt": "Interdisciplinary doctoral research in computational and biomedical modelling.",
-        }],
+        "programme_evidence": [
+            {
+                "url": "https://uni.example.edu/programme",
+                "excerpt": "Interdisciplinary doctoral research in computational and biomedical modelling.",
+            }
+        ],
         "research_fit": ["Generalisable models for instrumented physiological measurements"],
         "career_goal": "Reproducible modelling for biomedical measurement",
         "forbidden_organizations": ["Carinthia University of Applied Sciences"],
@@ -104,11 +107,14 @@ def test_brief_source_and_personal_data_remain_private(tmp_path):
     assert "Example University" in b
 
 
-@pytest.mark.parametrize("url", [
-    "http://uni.example.edu/programme",
-    "https://outside.example.org/programme",
-    "https://user:pass@uni.example.edu/programme",
-])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://uni.example.edu/programme",
+        "https://outside.example.org/programme",
+        "https://user:pass@uni.example.edu/programme",
+    ],
+)
 def test_unverified_or_unsafe_official_sources_are_rejected(tmp_path, url):
     path = make_brief(tmp_path, programme_evidence=[{"url": url, "excerpt": "Research programme."}])
     with pytest.raises(MotivationError, match="source|HTTPS|approved|university"):

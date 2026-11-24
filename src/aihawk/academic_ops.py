@@ -94,9 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     autofill = subs.add_parser("autofill", help="Prepare explicitly mapped controls in a visible browser; user submits manually.")
     autofill.add_argument("manifest", type=Path)
     autofill.add_argument("--persistent", action="store_true", help="Reuse the private academic browser login.")
-    autofill_stages = subs.add_parser(
-        "autofill-stages", help="Prepare individually reviewed stages; human navigates between pages and submits."
-    )
+    autofill_stages = subs.add_parser("autofill-stages", help="Prepare individually reviewed stages; human navigates between pages and submits.")
     autofill_stages.add_argument("manifest", type=Path)
     autofill_stages.add_argument("--persistent", action="store_true", help="Reuse the private academic browser login.")
     background_queue = subs.add_parser(
@@ -208,8 +206,11 @@ def main(argv: list[str] | None = None) -> int:
         from aihawk.academic_motivation import deliver
 
         result = deliver(
-            args.brief, args.output, draft_path=args.draft_json,
-            model=args.model, overwrite=args.overwrite,
+            args.brief,
+            args.output,
+            draft_path=args.draft_json,
+            model=args.model,
+            overwrite=args.overwrite,
         )
         print("Private Word motivation-letter draft: " + str(result))
         if args.pdf:
@@ -218,7 +219,8 @@ def main(argv: list[str] | None = None) -> int:
 
             review = load_brief(args.brief)
             pdf = export_letter_pdf(
-                result, result.with_suffix(".pdf"),
+                result,
+                result.with_suffix(".pdf"),
                 expected_name=review.applicant_name,
                 expected_institution=review.institution,
             )
@@ -329,8 +331,12 @@ def main(argv: list[str] | None = None) -> int:
                     return 1
                 proof_path = None if args.proof is None else (args.manifest.parent / args.proof).resolve()
                 status = registry.record_manual_submission(
-                    preview, title=title, now=datetime.now(UTC), human_attested=True,
-                    proof_path=proof_path, private_root=args.manifest.parent,
+                    preview,
+                    title=title,
+                    now=datetime.now(UTC),
+                    human_attested=True,
+                    proof_path=proof_path,
+                    private_root=args.manifest.parent,
                 )
         print(f"Local status: {status.state if status else 'not_recorded'}. No university contacted.")
         return 0
@@ -353,7 +359,8 @@ def main(argv: list[str] | None = None) -> int:
             journey = journey_from_manifest(manifest, manifest_dir=args.manifest.parent)
             binding_summary = tuple(
                 (f"{stage.name} [{stage.expected_host}{stage.expected_path}]: {entry.field}", entry.selector, entry.kind)
-                for stage in journey.stages for entry in stage.form.bindings
+                for stage in journey.stages
+                for entry in stage.form.bindings
             )
             binding_fingerprint = journey.fingerprint()
         elif "portal_bindings" in manifest:
@@ -363,8 +370,12 @@ def main(argv: list[str] | None = None) -> int:
             binding_summary = tuple((entry.field, entry.selector, entry.kind) for entry in plan.bindings)
             binding_fingerprint = plan.fingerprint()
         markup = render_preview(
-            application, title=title, official_hosts=hosts, sources=sources,
-            binding_summary=binding_summary, binding_fingerprint=binding_fingerprint,
+            application,
+            title=title,
+            official_hosts=hosts,
+            sources=sources,
+            binding_summary=binding_summary,
+            binding_fingerprint=binding_fingerprint,
         )
         save_preview(args.output, markup)
         print(f"Saved review preview: {args.output}. Fingerprint: {application.fingerprint()}. Nothing submitted.")

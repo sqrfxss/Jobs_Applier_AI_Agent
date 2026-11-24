@@ -1,4 +1,5 @@
 """Batch motivation writing for multiple independent academic positions."""
+
 from __future__ import annotations
 
 import json
@@ -21,20 +22,18 @@ def make_queue(tmp_path, *, duplicate_outputs=False):
             "cv_file": "resume.pdf",
             "official_source_hosts": ["uni.example.edu"],
             "applicant_facts": ["MSc thesis in biomechanical measurements"],
-            "programme_evidence": [{
-                "url": "https://uni.example.edu/programme",
-                "excerpt": "An interdisciplinary degree with supervised research.",
-            }],
+            "programme_evidence": [
+                {
+                    "url": "https://uni.example.edu/programme",
+                    "excerpt": "An interdisciplinary degree with supervised research.",
+                }
+            ],
             "research_fit": ["Independent validation of physiological data"],
             "career_goal": "Reliable biomedical research",
         }
         (tmp_path / f"brief-{index}.json").write_text(json.dumps(brief), encoding="utf-8")
     destinations = ["A.docx", "A.docx" if duplicate_outputs else "B.docx"]
-    queue = {
-        "positions": [
-            {"brief": f"brief-{i}.json", "output": destinations[i]} for i in range(2)
-        ]
-    }
+    queue = {"positions": [{"brief": f"brief-{i}.json", "output": destinations[i]} for i in range(2)]}
     q = tmp_path / "private-queue.json"
     q.write_text(json.dumps(queue), encoding="utf-8")
     return q
@@ -98,6 +97,7 @@ def test_partial_failure_records_review_required_without_pii(tmp_path):
         run_batch(queue, generate=True, generator=fake_generator)
     audit = json.loads((tmp_path / ".aihawk-motivation-batch.json").read_text(encoding="utf-8"))
     assert [x["status"] for x in audit["records"]] == [
-        "draft_requires_applicant_approval", "failed_review_required",
+        "draft_requires_applicant_approval",
+        "failed_review_required",
     ]
     assert "private message" not in json.dumps(audit)

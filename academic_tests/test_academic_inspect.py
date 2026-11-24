@@ -20,16 +20,20 @@ class ReadOnlyPage:
 
 
 def test_control_inventory_never_reads_application_values(tmp_path):
-    page = ReadOnlyPage([{
-        "type": "email",
-        "name": "email",
-        "label": "Email address",
-        "placeholder": "Your email",
-        "selector": "#email",
-        "unique": True,
-        "required": True,
-        "options": [],
-    }])
+    page = ReadOnlyPage(
+        [
+            {
+                "type": "email",
+                "name": "email",
+                "label": "Email address",
+                "placeholder": "Your email",
+                "selector": "#email",
+                "unique": True,
+                "required": True,
+                "options": [],
+            }
+        ]
+    )
     report = inspect_controls(page, official_hosts=("uni.example.edu",))
     assert report["submission_enabled"] is False
     assert report["values_captured"] is False
@@ -74,14 +78,18 @@ def test_noninteractive_inspection_forbidden(tmp_path, monkeypatch):
 
 
 def test_hidden_upload_is_reported_without_capturing_its_value():
-    page = ReadOnlyPage([{
-        "type": "file",
-        "name": "degree_file",
-        "label": "Degree certificate",
-        "selector": "#degree-file",
-        "unique": True,
-        "hiddenUpload": True,
-    }])
+    page = ReadOnlyPage(
+        [
+            {
+                "type": "file",
+                "name": "degree_file",
+                "label": "Degree certificate",
+                "selector": "#degree-file",
+                "unique": True,
+                "hiddenUpload": True,
+            }
+        ]
+    )
     result = inspect_controls(page, official_hosts=("uni.example.edu",))
     assert result["controls"][0]["kind"] == "upload"
     assert result["controls"][0]["hidden_upload"] is True
@@ -90,23 +98,28 @@ def test_hidden_upload_is_reported_without_capturing_its_value():
 
 
 def test_file_accept_and_multiple_attributes_are_inspected_without_reading_values():
-    page = ReadOnlyPage([{
-        "type": "file",
-        "name": "motivation_letter",
-        "label": "Letter of Motivation",
-        "selector": "#motivation",
-        "unique": True,
-        "accept": ".pdf,.doc,.txt",
-        "multiple": False,
-    }, {
-        "type": "file",
-        "name": "transcripts",
-        "label": "Transcripts",
-        "selector": "#transcripts",
-        "unique": True,
-        "accept": ".pdf,.jpg,.png",
-        "multiple": True,
-    }])
+    page = ReadOnlyPage(
+        [
+            {
+                "type": "file",
+                "name": "motivation_letter",
+                "label": "Letter of Motivation",
+                "selector": "#motivation",
+                "unique": True,
+                "accept": ".pdf,.doc,.txt",
+                "multiple": False,
+            },
+            {
+                "type": "file",
+                "name": "transcripts",
+                "label": "Transcripts",
+                "selector": "#transcripts",
+                "unique": True,
+                "accept": ".pdf,.jpg,.png",
+                "multiple": True,
+            },
+        ]
+    )
     report = inspect_controls(page, official_hosts=("uni.example.edu",))
     fields = report["controls"]
     assert fields[0]["accept_attribute_untrusted"] == ".pdf,.doc,.txt"

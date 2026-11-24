@@ -2,6 +2,7 @@
 
 Never invites referees, sends emails, changes consents, or final-submits.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -39,12 +40,11 @@ def run_background_draft(manifest: Path, report_path: Path) -> dict:
         if any(m.expected_path != stage.expected_path for m in upload_plan.bindings):
             raise PortalPreparationError("Single-page upload mapping references another route.")
     reviewed = {
-        "form": form.fingerprint(), "save": save,
+        "form": form.fingerprint(),
+        "save": save,
         "uploads": upload_plan.fingerprint() if upload_plan is not None else None,
     }
-    signature = hashlib.sha256(
-        json.dumps(reviewed, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
+    signature = hashlib.sha256(json.dumps(reviewed, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
     previous = {}
     if report_path.exists():
         previous = json.loads(report_path.read_text(encoding="utf-8"))
@@ -64,17 +64,18 @@ def run_background_draft(manifest: Path, report_path: Path) -> dict:
         from playwright.sync_api import sync_playwright
 
         with sync_playwright() as playwright:
-            context = launch_academic_context(
-                playwright, manifest_dir=manifest.parent, headless=True
-            )
+            context = launch_academic_context(playwright, manifest_dir=manifest.parent, headless=True)
             try:
-                page = official_session_page(
-                    context, url=form.preview.opportunity_url, official_hosts=form.hosts
-                )
+                page = official_session_page(context, url=form.preview.opportunity_url, official_hosts=form.hosts)
                 try:
                     outcome = run_stage(
-                        page, context, stage, form.hosts, data,
-                        upload_plan=upload_plan, already_confirmed=already,
+                        page,
+                        context,
+                        stage,
+                        form.hosts,
+                        data,
+                        upload_plan=upload_plan,
+                        already_confirmed=already,
                     )
                     report.update(outcome)
                     report["result"] = "server_saved_verified"
@@ -82,9 +83,7 @@ def run_background_draft(manifest: Path, report_path: Path) -> dict:
                 except UserActionRequired as error:
                     report["result"] = "needs_user_action"
                     report["user_action"] = error.challenge.public_record()
-                    save_public_checkpoint(
-                        manifest.parent / ".aihawk-auth-checkpoint.json", error.challenge
-                    )
+                    save_public_checkpoint(manifest.parent / ".aihawk-auth-checkpoint.json", error.challenge)
                 except Exception as error:
                     report["result"] = "stopped_needs_review"
                     report["error"] = str(error)[:400]
@@ -107,13 +106,15 @@ def run_background_draft_reported(manifest: Path, report_path: Path) -> dict:
                 status = json.loads(report_path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 pass
-        status.update({
-            "result": "needs_user_action",
-            "user_action": error.challenge.public_record(),
-            "emails_sent": False,
-            "final_submission": False,
-            "personal_chrome_controlled": False,
-        })
+        status.update(
+            {
+                "result": "needs_user_action",
+                "user_action": error.challenge.public_record(),
+                "emails_sent": False,
+                "final_submission": False,
+                "personal_chrome_controlled": False,
+            }
+        )
         save_public_checkpoint(manifest.parent / ".aihawk-auth-checkpoint.json", error.challenge)
         _atomic_json(report_path, status)
         return status
@@ -124,12 +125,14 @@ def run_background_draft_reported(manifest: Path, report_path: Path) -> dict:
                 status = json.loads(report_path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 pass
-        status.update({
-            "result": "stopped_needs_review",
-            "error": str(error)[:400],
-            "emails_sent": False,
-            "final_submission": False,
-            "personal_chrome_controlled": False,
-        })
+        status.update(
+            {
+                "result": "stopped_needs_review",
+                "error": str(error)[:400],
+                "emails_sent": False,
+                "final_submission": False,
+                "personal_chrome_controlled": False,
+            }
+        )
         _atomic_json(report_path, status)
         return status

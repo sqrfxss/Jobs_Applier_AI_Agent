@@ -11,7 +11,8 @@ NOW = datetime(2026, 11, 20, tzinfo=UTC)
 
 def sample():
     return ApplicationPreview(
-        "https://uni.example.edu/apply", "private-candidate-id",
+        "https://uni.example.edu/apply",
+        "private-candidate-id",
         (("email", "private@example.com"), ("programme", "PhD")),
         ("sha256:1234",),
     )

@@ -3,6 +3,7 @@
 Uses native Microsoft Word on Windows and LibreOffice elsewhere. Does not
 download fonts, invoke an AI model, access a university or submit a form.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -47,8 +48,14 @@ def _libreoffice_export(src: Path, dst: Path) -> None:
         raise MotivationError("Install LibreOffice for academic Word-to-PDF conversion on this platform.")
     with tempfile.TemporaryDirectory(prefix="aihawk-lo-profile-", dir=str(src.parent)) as profile:
         cmd = [
-            executable, "-env:UserInstallation=" + Path(profile).as_uri(), "--headless",
-            "--convert-to", "pdf:writer_pdf_Export", "--outdir", str(dst.parent), str(src),
+            executable,
+            "-env:UserInstallation=" + Path(profile).as_uri(),
+            "--headless",
+            "--convert-to",
+            "pdf:writer_pdf_Export",
+            "--outdir",
+            str(dst.parent),
+            str(src),
         ]
         try:
             run = subprocess.run(cmd, capture_output=True, timeout=90, check=False)
@@ -113,6 +120,7 @@ def export_letter_pdf(source: Path, destination: Path, *, expected_name: str, ex
     if len(original.sections) != 1:
         raise MotivationError("Academic letter has more than one Word section.")
     from aihawk.academic_document_gate import require_writing_preflight
+
     try:
         require_writing_preflight(source)
     except ValueError as exc:

@@ -1,4 +1,5 @@
 """Safe session tests. Never launch the applicant's personal browser."""
+
 from __future__ import annotations
 
 import sys
@@ -120,34 +121,26 @@ def test_does_not_retry_unrelated_browser_errors(tmp_path):
 def test_refuses_institutional_multi_tab_ambiguity():
     ctx = FakeContext(["https://admissions.uni.example.edu/apply", "https://admissions.uni.example.edu/other"])
     with pytest.raises(PortalPreparationError, match="Multiple"):
-        official_session_page(
-            ctx, url="https://admissions.uni.example.edu/apply", official_hosts=("uni.example.edu",)
-        )
+        official_session_page(ctx, url="https://admissions.uni.example.edu/apply", official_hosts=("uni.example.edu",))
 
 
 def test_refuses_unrelated_tab_even_if_other_tab_is_official():
     ctx = FakeContext(["https://google.com", "https://admissions.uni.example.edu/apply"])
     with pytest.raises(PortalPreparationError, match="Unexpected"):
-        official_session_page(
-            ctx, url="https://admissions.uni.example.edu/apply", official_hosts=("uni.example.edu",)
-        )
+        official_session_page(ctx, url="https://admissions.uni.example.edu/apply", official_hosts=("uni.example.edu",))
 
 
 def test_reuses_existing_institutional_tab_without_navigation():
     page = FakePage("https://admissions.uni.example.edu/apply")
     context = FakeContext([])
     context.pages.append(page)
-    assert official_session_page(
-        context, url="https://admissions.uni.example.edu/apply", official_hosts=("uni.example.edu",)
-    ) is page
+    assert official_session_page(context, url="https://admissions.uni.example.edu/apply", official_hosts=("uni.example.edu",)) is page
     assert page.visits == []
 
 
 def test_navigates_blank_persistent_tab_for_first_run():
     context = FakeContext(["about:blank"])
-    page = official_session_page(
-        context, url="https://admissions.uni.example.edu/apply", official_hosts=("uni.example.edu",)
-    )
+    page = official_session_page(context, url="https://admissions.uni.example.edu/apply", official_hosts=("uni.example.edu",))
     assert page.visits == ["https://admissions.uni.example.edu/apply"]
     assert len(context.pages) == 1
 

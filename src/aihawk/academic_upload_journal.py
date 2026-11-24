@@ -62,9 +62,7 @@ class UploadJournal:
                     fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except (OSError, BlockingIOError) as error:
                 os.close(fd)
-                raise PortalPreparationError(
-                    "Another upload process holds this application's academic lock."
-                ) from error
+                raise PortalPreparationError("Another upload process holds this application's academic lock.") from error
         except PortalPreparationError:
             raise
         except OSError as error:

@@ -64,10 +64,7 @@ class Binding:
             raise PortalPreparationError("Invalid/oversized CSS selector.")
         if self.kind == "choice" and not self.option_selector:
             raise PortalPreparationError("Custom choice requires an explicitly reviewed option selector.")
-        if self.option_selector and (
-            self.kind != "choice" or len(self.option_selector) > 300
-            or "\n" in self.option_selector or "\r" in self.option_selector
-        ):
+        if self.option_selector and (self.kind != "choice" or len(self.option_selector) > 300 or "\n" in self.option_selector or "\r" in self.option_selector):
             raise PortalPreparationError("Invalid custom choice option selector.")
 
 
@@ -86,7 +83,9 @@ class FormPlan:
         """Bind approval to both reviewed facts AND exact selectors/actions."""
         payload = {
             "reviewed_content": self.preview.fingerprint(),
-            "mappings": [{"field": item.field, "selector": item.selector, "kind": item.kind, "option_selector": item.option_selector} for item in self.bindings],
+            "mappings": [
+                {"field": item.field, "selector": item.selector, "kind": item.kind, "option_selector": item.option_selector} for item in self.bindings
+            ],
         }
         raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()

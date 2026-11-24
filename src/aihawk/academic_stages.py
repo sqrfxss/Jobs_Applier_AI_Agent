@@ -55,7 +55,9 @@ class PortalJourney:
                 "starting_url": self.starting_url,
                 "stages": [stage.fingerprint() for stage in self.stages],
             },
-            ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
         )
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
@@ -108,8 +110,7 @@ def verify_stage_location(url: str, stage: PortalStage, hosts: tuple[str, ...]) 
     path = urlsplit(url).path or "/"
     if host != stage.expected_host or path != stage.expected_path:
         raise PortalPreparationError(
-            f"Wrong portal page for stage '{stage.name}': expected "
-            f"{stage.expected_host}{stage.expected_path}; field preparation stopped."
+            f"Wrong portal page for stage '{stage.name}': expected {stage.expected_host}{stage.expected_path}; field preparation stopped."
         )
 
 
@@ -147,8 +148,7 @@ def run_interactive_journey(manifest: Path, *, persistent: bool = False, prompt=
                 page.goto(journey.starting_url, wait_until="domcontentloaded", timeout=45000)
             print("Sign in and advance between stages yourself. The software NEVER clicks Next or Submit.")
             for index, stage in enumerate(journey.stages, start=1):
-                print(f"Stage {index}/{len(journey.stages)}: {stage.name} "
-                      f"at https://{stage.expected_host}{stage.expected_path}")
+                print(f"Stage {index}/{len(journey.stages)}: {stage.name} at https://{stage.expected_host}{stage.expected_path}")
                 prompt("Navigate manually to this stage and press Enter when its form is visible: ")
                 verify_stage_location(page.url, stage, journey.hosts)
                 step_key = stage.fingerprint()[-12:]

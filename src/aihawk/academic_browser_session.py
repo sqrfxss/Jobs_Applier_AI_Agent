@@ -61,21 +61,17 @@ def launch_academic_context(playwright: Any, *, manifest_dir: Path, headless: bo
             if "executable doesn't exist" not in str(error).casefold():
                 raise
             unavailable.append(channel or "playwright-chromium")
-    raise PortalPreparationError(
-        "No supported local Chromium browser found. Tried: " + ", ".join(unavailable)
-    )
+    raise PortalPreparationError("No supported local Chromium browser found. Tried: " + ", ".join(unavailable))
 
 
 def official_session_page(context: Any, *, url: str, official_hosts: tuple[str, ...]) -> Any:
     """Reuse only the matching institutional tab; never inspect other tabs."""
     expected = verified_portal_host(url, official_hosts)
     from aihawk.academic_portal_limits import attach_limits
+
     attach_limits(context, official_hosts)
     other_pages = [page for page in context.pages if page.url != "about:blank"]
-    selected = [
-        page for page in other_pages
-        if _matching_host(page.url, expected, official_hosts)
-    ]
+    selected = [page for page in other_pages if _matching_host(page.url, expected, official_hosts)]
     if len(selected) > 1:
         raise PortalPreparationError("Multiple institutional tabs: select one explicitly before proceeding.")
     if other_pages and len(selected) != len(other_pages):
@@ -84,16 +80,18 @@ def official_session_page(context: Any, *, url: str, official_hosts: tuple[str, 
         return selected[0]
     page = context.pages[0] if context.pages else context.new_page()
     from aihawk.academic_action_budget import ActionBudget
+
     ActionBudget().reserve_url(url, "portal_entry", official_hosts)
     # Some e:Vision institutional pages deliver headers but stall before
     # DOMContentLoaded. Distinguish a server response from a fully rendered
     # application; the authenticated-project guard checks the latter later.
     page.goto(url, wait_until="commit", timeout=25_000)
     verified_portal_host(page.url, official_hosts)
-    if hasattr(page,"wait_for_load_state"):
+    if hasattr(page, "wait_for_load_state"):
         from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
         try:
-            page.wait_for_load_state("domcontentloaded",timeout=6_000)
+            page.wait_for_load_state("domcontentloaded", timeout=6_000)
         except PlaywrightTimeoutError:
             # The supervisor will classify the page as unavailable or
             # unauthenticated; don't treat a blank page as an application.

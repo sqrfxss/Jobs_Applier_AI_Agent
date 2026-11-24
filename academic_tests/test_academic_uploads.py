@@ -1,4 +1,5 @@
 """File-upload safety and idempotence checks; no university contacted."""
+
 from __future__ import annotations
 
 import sys
@@ -25,16 +26,18 @@ def manifest():
         "applicant_id": "offline",
         "fields": {},
         "attachments": ["proof.pdf"],
-        "portal_uploads": [{
-            "field": "proof.pdf",
-            "input_selector": "#proof",
-            "upload_button_selector": "#proof-upload",
-            "container_selector": "#proof-section",
-            "receipt_selector": ".file a",
-            "remove_selector": "button.remove",
-            "expected_path": "/apply",
-            "upload_endpoint_path": "/file/ajax",
-        }],
+        "portal_uploads": [
+            {
+                "field": "proof.pdf",
+                "input_selector": "#proof",
+                "upload_button_selector": "#proof-upload",
+                "container_selector": "#proof-section",
+                "receipt_selector": ".file a",
+                "remove_selector": "button.remove",
+                "expected_path": "/apply",
+                "upload_endpoint_path": "/file/ajax",
+            }
+        ],
     }
 
 
@@ -88,16 +91,19 @@ class Route:
         self.record.append("block")
 
 
-@pytest.mark.parametrize("method,url,resource,allowed", [
-    ("POST", "https://admissions.uni.example.edu/file/ajax", "xhr", True),
-    ("POST", "https://admissions.uni.example.edu/file/ajax", "fetch", True),
-    ("GET", "https://admissions.uni.example.edu/file/ajax", "xhr", False),
-    ("POST", "https://admissions.uni.example.edu/submit", "xhr", False),
-    ("POST", "https://evil.test/file/ajax", "fetch", False),
-    ("POST", "http://admissions.uni.example.edu/file/ajax", "xhr", False),
-    ("POST", "https://admissions.uni.example.edu/file/ajax/extra", "xhr", False),
-    ("POST", "https://admissions.uni.example.edu/file/ajax", "document", False),
-])
+@pytest.mark.parametrize(
+    "method,url,resource,allowed",
+    [
+        ("POST", "https://admissions.uni.example.edu/file/ajax", "xhr", True),
+        ("POST", "https://admissions.uni.example.edu/file/ajax", "fetch", True),
+        ("GET", "https://admissions.uni.example.edu/file/ajax", "xhr", False),
+        ("POST", "https://admissions.uni.example.edu/submit", "xhr", False),
+        ("POST", "https://evil.test/file/ajax", "fetch", False),
+        ("POST", "http://admissions.uni.example.edu/file/ajax", "xhr", False),
+        ("POST", "https://admissions.uni.example.edu/file/ajax/extra", "xhr", False),
+        ("POST", "https://admissions.uni.example.edu/file/ajax", "document", False),
+    ],
+)
 def test_network_guard_is_exact_host_method_path_and_xhr_only(tmp_path, method, url, resource, allowed):
     plan = build(tmp_path)
     page = SimpleNamespace(url=plan.application_url)
@@ -164,9 +170,14 @@ def test_prior_files_require_explicit_manifest_approval(tmp_path):
     assert plan.bindings[0].expected_existing_files == ("original.pdf",)
 
 
-@pytest.mark.parametrize("prior", [
-    ["../unsafe.pdf"], ["other.pdf", "other.pdf"], ["proof.pdf"],
-])
+@pytest.mark.parametrize(
+    "prior",
+    [
+        ["../unsafe.pdf"],
+        ["other.pdf", "other.pdf"],
+        ["proof.pdf"],
+    ],
+)
 def test_prior_file_names_reject_traversal_duplicates_and_self_reference(tmp_path, prior):
     data = manifest()
     data["portal_uploads"][0]["expected_existing_files"] = prior

@@ -4,6 +4,7 @@ No mail merge: each position has its own approved facts, official sources,
 research fit and CV fingerprint. Default behavior is read-only planning;
 generation requires an explicit user action and proceeds sequentially.
 """
+
 from __future__ import annotations
 
 import json
@@ -63,8 +64,7 @@ def batch_from_queue(path: Path) -> tuple[BatchItem, ...]:
     return tuple(items)
 
 
-def run_batch(queue: Path, *, generate: bool = False, model: str | None = None, overwrite: bool = False,
-              generator: Any = deliver) -> list[dict[str, str]]:
+def run_batch(queue: Path, *, generate: bool = False, model: str | None = None, overwrite: bool = False, generator: Any = deliver) -> list[dict[str, str]]:
     items = batch_from_queue(queue)
     summary = []
     for item in items:
@@ -82,8 +82,11 @@ def run_batch(queue: Path, *, generate: bool = False, model: str | None = None, 
     for item, record in zip(items, summary, strict=True):
         try:
             result = generator(
-                item.brief, item.output, draft_path=item.reviewed_draft,
-                model=model, overwrite=overwrite,
+                item.brief,
+                item.output,
+                draft_path=item.reviewed_draft,
+                model=model,
+                overwrite=overwrite,
             )
         except Exception:
             record["status"] = "failed_review_required"

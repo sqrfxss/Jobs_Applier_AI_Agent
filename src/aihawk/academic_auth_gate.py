@@ -3,6 +3,7 @@
 The applicant enters credentials, verification codes and CAPTCHAs only
 in an official visible browser. Neither secrets nor cookies enter reports.
 """
+
 from __future__ import annotations
 
 import json
@@ -71,40 +72,21 @@ def detect_auth_challenge(page, *, official_hosts: tuple[str, ...]) -> AuthChall
     url = _safe_url(page.url)
 
     if visible["captcha"]:
-        return AuthChallenge(
-            "captcha", url,
-            "Solve CAPTCHA in the official browser yourself. Do not share its token."
-        )
-    if any(x["autocomplete"] == "one-time-code" for x in fields) or re.search(
-        r"\b(otp|totp|mfa|2fa|verification.?code|sms.?code|pin.?code)\b", keys
-    ):
-        return AuthChallenge(
-            "verification_code", url,
-            "Enter the one-time verification code in the official browser. Do not send it in chat."
-        )
+        return AuthChallenge("captcha", url, "Solve CAPTCHA in the official browser yourself. Do not share its token.")
+    if any(x["autocomplete"] == "one-time-code" for x in fields) or re.search(r"\b(otp|totp|mfa|2fa|verification.?code|sms.?code|pin.?code)\b", keys):
+        return AuthChallenge("verification_code", url, "Enter the one-time verification code in the official browser. Do not send it in chat.")
     if any(x["type"] == "password" for x in fields):
-        kind = "create_account" if re.search(
-            r"create (an? )?account|sign up|register|registration|activate account", buttons
-        ) else "sign_in"
+        kind = "create_account" if re.search(r"create (an? )?account|sign up|register|registration|activate account", buttons) else "sign_in"
         return AuthChallenge(
-            kind, url,
-            "Enter your university username and password directly in the official browser. "
-            "Do not send passwords in chat or store them in agent logs."
+            kind,
+            url,
+            "Enter your university username and password directly in the official browser. Do not send passwords in chat or store them in agent logs.",
         )
     host = (urlsplit(page.url).hostname or "").casefold()
-    kuleuven_identity = (
-        host == "idp.kuleuven.be"
-        and "/idpx/profile/" in urlsplit(page.url).path
-        and "continue" in buttons
-    )
-    if kuleuven_identity or re.search(
-        r"sign.?in|log.?in|register|create.?account|account/activate", page.url, re.I
-    ):
+    kuleuven_identity = host == "idp.kuleuven.be" and "/idpx/profile/" in urlsplit(page.url).path and "continue" in buttons
+    if kuleuven_identity or re.search(r"sign.?in|log.?in|register|create.?account|account/activate", page.url, re.I):
         if any(x["type"] in ("email", "text") for x in fields):
-            return AuthChallenge(
-                "account_or_login", url,
-                "Continue university sign-in/registration in the official browser."
-            )
+            return AuthChallenge("account_or_login", url, "Continue university sign-in/registration in the official browser.")
     return None
 
 

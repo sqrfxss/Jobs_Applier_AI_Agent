@@ -4,12 +4,12 @@ Single isolated browser context; no personal Chrome focus, OS file picker,
 referee invitations, emails, legal consents, or final application Submit.
 All navigation and Save actions must match the operator-reviewed manifest.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import os
-import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,10 +51,7 @@ def _verified_save_action(data: Any) -> dict:
     if " ".join(data["label"].casefold().split()) not in SAFE_DRAFT_BUTTONS:
         raise PortalPreparationError("This action is not explicitly recognized as Save Draft.")
     path = data.get("post_save_path")
-    if path is not None and (
-        not isinstance(path, str) or not path.startswith("/") or path.startswith("//")
-        or any(x in path for x in ("?", "#", "\r", "\n"))
-    ):
+    if path is not None and (not isinstance(path, str) or not path.startswith("/") or path.startswith("//") or any(x in path for x in ("?", "#", "\r", "\n"))):
         raise PortalPreparationError("Invalid post-save path.")
     return dict(data)
 
@@ -64,10 +61,7 @@ def _activate_stage_tab(page: Any, stage: Any, stage_data: dict, hosts: tuple[st
     tab = stage_data.get("activate_tab")
     if tab is None:
         return
-    if (
-        not isinstance(tab, dict) or set(tab) != {"selector", "label"}
-        or any(not isinstance(v, str) or not v.strip() or len(v) > 250 for v in tab.values())
-    ):
+    if not isinstance(tab, dict) or set(tab) != {"selector", "label"} or any(not isinstance(v, str) or not v.strip() or len(v) > 250 for v in tab.values()):
         raise PortalPreparationError("A tab activation requires an exact reviewed selector and caption.")
     forbidden = ("submit", "send", "invite", "referee", "consent", "agree", "pay", "purchase", "delete")
     if any(word in tab["label"].casefold() for word in forbidden):
@@ -111,6 +105,7 @@ def _field_equals_review(page: Any, stage: Any) -> bool:
 
 def _allowlisted_stage_page(page: Any, stage: Any, hosts: tuple[str, ...]) -> None:
     from aihawk.academic_portal_limits import check_access
+
     check_access(hosts)
     require_human_if_needed(page, official_hosts=hosts)
     try:
@@ -121,19 +116,23 @@ def _allowlisted_stage_page(page: Any, stage: Any, hosts: tuple[str, ...]) -> No
 
 def _verify_server_persistence(page: Any, stage: Any, hosts: tuple[str, ...], stage_data: dict) -> None:
     from aihawk.academic_portal_limits import check_access
+
     check_access(hosts)
     page.goto(f"https://{stage.expected_host}{stage.expected_path}", wait_until="domcontentloaded", timeout=25000)
     _allowlisted_stage_page(page, stage, hosts)
     _activate_stage_tab(page, stage, stage_data, hosts)
     if not _field_equals_review(page, stage):
-        raise PortalPreparationError(
-            "Draft Save did not persist all reviewed values after a new page load."
-        )
+        raise PortalPreparationError("Draft Save did not persist all reviewed values after a new page load.")
 
 
 def run_stage(
-    page: Any, context: Any, stage: Any, hosts: tuple[str, ...],
-    stage_data: dict, *, upload_plan: Any | None = None,
+    page: Any,
+    context: Any,
+    stage: Any,
+    hosts: tuple[str, ...],
+    stage_data: dict,
+    *,
+    upload_plan: Any | None = None,
     already_confirmed: bool = False,
 ) -> dict:
     """Run one exact stage; server readback is mandatory before checkpoint."""
@@ -152,15 +151,13 @@ def run_stage(
             raise PortalPreparationError("Previously saved stage no longer matches; refusing silent overwrite.")
         for mapping in uploads:
             container = page.locator(mapping.container_selector)
-            if container.count() != 1 or not receipt_present(
-                container, mapping, upload_plan.file_for(mapping.field)[0].name
-            ):
+            if container.count() != 1 or not receipt_present(container, mapping, upload_plan.file_for(mapping.field)[0].name):
                 raise PortalPreparationError("Previously confirmed file receipt is no longer visible.")
         return {
             "state": "reverified_no_change",
             "field_count": len(stage.form.bindings),
             "uploads": len(uploads),
-            "elapsed_seconds": round(time.perf_counter()-started, 3),
+            "elapsed_seconds": round(time.perf_counter() - started, 3),
         }
 
     # Use constrained locators; never touch desktop focus or activate personal Chrome.
@@ -174,9 +171,11 @@ def run_stage(
     # plus an expected document link and removal control, without a native chooser.
     file_status = {}
     from aihawk.academic_portal_limits import check_access
+
     for mapping in uploads:
         check_access(hosts)
         from aihawk.academic_action_budget import ActionBudget
+
         ActionBudget().reserve_url(page.url, "upload", hosts)
         file_status[mapping.field] = upload_one(page, context, upload_plan, mapping)
     action = page.locator(save["selector"])
@@ -194,6 +193,7 @@ def run_stage(
         raise PortalPreparationError("Refusing non-draft form action.")
     check_access(hosts)
     from aihawk.academic_action_budget import ActionBudget
+
     ActionBudget().reserve_url(page.url, "draft_save", hosts)
     action.click(timeout=6000)
     expected_post = save.get("post_save_path", stage.expected_path)
@@ -207,15 +207,13 @@ def run_stage(
     _verify_server_persistence(page, stage, hosts, stage_data)
     for mapping in uploads:
         container = page.locator(mapping.container_selector)
-        if container.count() != 1 or not receipt_present(
-            container, mapping, upload_plan.file_for(mapping.field)[0].name
-        ):
+        if container.count() != 1 or not receipt_present(container, mapping, upload_plan.file_for(mapping.field)[0].name):
             raise PortalPreparationError("Uploaded document has no server receipt after saving and reloading.")
     return {
         "state": "server_saved_verified",
         "field_count": len(filled),
         "uploads": file_status,
-        "elapsed_seconds": round(time.perf_counter()-started, 3),
+        "elapsed_seconds": round(time.perf_counter() - started, 3),
         "blocked_during_field_prep": guard.blocked_requests,
     }
 
@@ -237,6 +235,7 @@ def run_background_journey(manifest: Path, report_path: Path) -> dict:
     auth_callback = None
     if data.get("oracle_auth"):
         from aihawk.academic_live_auth import reviewed_auth_callback
+
         auth_callback = reviewed_auth_callback(data["oracle_auth"], journey)
     for s in stages_data:
         _verified_save_action(s.get("draft_save"))
@@ -252,9 +251,7 @@ def run_background_journey(manifest: Path, report_path: Path) -> dict:
         "tabs": [item.get("activate_tab") for item in stages_data],
         "uploads": upload_plan.fingerprint() if upload_plan is not None else None,
     }
-    fingerprint = hashlib.sha256(
-        json.dumps(reviewed_actions, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
+    fingerprint = hashlib.sha256(json.dumps(reviewed_actions, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
     previous = {}
     if report_path.exists():
         previous = json.loads(report_path.read_text(encoding="utf-8"))
@@ -273,6 +270,7 @@ def run_background_journey(manifest: Path, report_path: Path) -> dict:
     _atomic_json(report_path, report)
     with exclusive_session(manifest.parent):
         from playwright.sync_api import sync_playwright
+
         with sync_playwright() as playwright:
             context = launch_academic_context(playwright, manifest_dir=manifest.parent, headless=auth_callback is None)
             try:
@@ -282,16 +280,23 @@ def run_background_journey(manifest: Path, report_path: Path) -> dict:
                 for stage, stage_data in zip(journey.stages, stages_data, strict=True):
                     stage_url = f"https://{stage.expected_host}{stage.expected_path}"
                     from aihawk.academic_portal_limits import check_access
+
                     check_access(journey.hosts)
                     if page.url != stage_url:
                         require_human_if_needed(page, official_hosts=journey.hosts)
                         page.goto(stage_url, wait_until="domcontentloaded", timeout=25000)
                     try:
                         outcome = run_stage(
-                            page, context, stage, journey.hosts, stage_data,
+                            page,
+                            context,
+                            stage,
+                            journey.hosts,
+                            stage_data,
                             upload_plan=upload_plan,
-                            already_confirmed=report["stages"].get(stage.name, {}).get("state") in (
-                                "server_saved_verified", "reverified_no_change",
+                            already_confirmed=report["stages"].get(stage.name, {}).get("state")
+                            in (
+                                "server_saved_verified",
+                                "reverified_no_change",
                             ),
                         )
                         report["stages"][stage.name] = outcome
@@ -300,23 +305,21 @@ def run_background_journey(manifest: Path, report_path: Path) -> dict:
                         report["result"] = "needs_user_action"
                         report["stopped_at"] = stage.name
                         report["user_action"] = error.challenge.public_record()
-                        report["elapsed_seconds"] = round(time.perf_counter()-started, 3)
-                        save_public_checkpoint(
-                            manifest.parent / ".aihawk-auth-checkpoint.json", error.challenge
-                        )
+                        report["elapsed_seconds"] = round(time.perf_counter() - started, 3)
+                        save_public_checkpoint(manifest.parent / ".aihawk-auth-checkpoint.json", error.challenge)
                         _atomic_json(report_path, report)
                         return report
                     except Exception as error:
                         report["result"] = "stopped_needs_review"
                         report["stopped_at"] = stage.name
                         report["error"] = str(error)[:400]
-                        report["elapsed_seconds"] = round(time.perf_counter()-started, 3)
+                        report["elapsed_seconds"] = round(time.perf_counter() - started, 3)
                         _atomic_json(report_path, report)
                         return report
             finally:
                 context.close()
     report["result"] = "all_draft_stages_saved_verified"
-    report["elapsed_seconds"] = round(time.perf_counter()-started, 3)
+    report["elapsed_seconds"] = round(time.perf_counter() - started, 3)
     report["recorded_utc"] = datetime.now(timezone.utc).isoformat()
     _atomic_json(report_path, report)
     return report
@@ -333,13 +336,15 @@ def run_background_journey_reported(manifest: Path, report_path: Path) -> dict:
                 status = json.loads(report_path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 pass
-        status.update({
-            "result": "needs_user_action",
-            "user_action": error.challenge.public_record(),
-            "emails_sent": False,
-            "final_submission": False,
-            "personal_chrome_controlled": False,
-        })
+        status.update(
+            {
+                "result": "needs_user_action",
+                "user_action": error.challenge.public_record(),
+                "emails_sent": False,
+                "final_submission": False,
+                "personal_chrome_controlled": False,
+            }
+        )
         save_public_checkpoint(manifest.parent / ".aihawk-auth-checkpoint.json", error.challenge)
         _atomic_json(report_path, status)
         return status
@@ -350,12 +355,14 @@ def run_background_journey_reported(manifest: Path, report_path: Path) -> dict:
                 status = json.loads(report_path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 pass
-        status.update({
-            "result": "stopped_needs_review",
-            "error": str(error)[:400],
-            "emails_sent": False,
-            "final_submission": False,
-            "personal_chrome_controlled": False,
-        })
+        status.update(
+            {
+                "result": "stopped_needs_review",
+                "error": str(error)[:400],
+                "emails_sent": False,
+                "final_submission": False,
+                "personal_chrome_controlled": False,
+            }
+        )
         _atomic_json(report_path, status)
         return status

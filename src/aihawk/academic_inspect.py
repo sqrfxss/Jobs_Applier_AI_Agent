@@ -62,20 +62,22 @@ def inspect_controls(page: Any, *, official_hosts: tuple[str, ...]) -> dict[str,
         kind = raw.get("type")
         if kind not in {"text", "email", "tel", "url", "number", "search", "date", "file", "textarea", "select"}:
             continue
-        cleaned.append({
-            "name": str(raw.get("name", ""))[:120],
-            "label_untrusted": str(raw.get("label", ""))[:180],
-            "placeholder_untrusted": str(raw.get("placeholder", ""))[:160],
-            "selector_candidate": str(raw.get("selector", ""))[:300],
-            "selector_unique": raw.get("unique") is True,
-            "kind": "select" if kind == "select" else ("upload" if kind == "file" else "text"),
-            "html_type": kind,
-            "required": raw.get("required") is True,
-            "hidden_upload": kind == "file" and raw.get("hiddenUpload") is True,
-            "accept_attribute_untrusted": str(raw.get("accept", ""))[:200] if kind == "file" else "",
-            "multiple_files": kind == "file" and raw.get("multiple") is True,
-            "options_untrusted": raw.get("options", [])[:35] if isinstance(raw.get("options"), list) else [],
-        })
+        cleaned.append(
+            {
+                "name": str(raw.get("name", ""))[:120],
+                "label_untrusted": str(raw.get("label", ""))[:180],
+                "placeholder_untrusted": str(raw.get("placeholder", ""))[:160],
+                "selector_candidate": str(raw.get("selector", ""))[:300],
+                "selector_unique": raw.get("unique") is True,
+                "kind": "select" if kind == "select" else ("upload" if kind == "file" else "text"),
+                "html_type": kind,
+                "required": raw.get("required") is True,
+                "hidden_upload": kind == "file" and raw.get("hiddenUpload") is True,
+                "accept_attribute_untrusted": str(raw.get("accept", ""))[:200] if kind == "file" else "",
+                "multiple_files": kind == "file" and raw.get("multiple") is True,
+                "options_untrusted": raw.get("options", [])[:35] if isinstance(raw.get("options"), list) else [],
+            }
+        )
     verified_portal_host(page.url, official_hosts)
     return {
         "schema": "aihawk.academic.control-inventory.v1",

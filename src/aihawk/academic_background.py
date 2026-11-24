@@ -4,6 +4,7 @@ No personal Chrome tab switching, keyboard injection, form submission,
 referee invitations, emails or consent decisions. A separately authenticated,
 per-application Playwright browser profile is required for private portals.
 """
+
 from __future__ import annotations
 
 import json
@@ -41,15 +42,15 @@ def exclusive_session(manifest_dir: Path):
         try:
             if os.name == "nt":
                 import msvcrt
+
                 msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
             else:
                 import fcntl
+
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             acquired = True
         except (OSError, BlockingIOError) as exc:
-            raise PortalPreparationError(
-                "Another academic background job is using this private browser profile."
-            ) from exc
+            raise PortalPreparationError("Another academic background job is using this private browser profile.") from exc
         os.ftruncate(fd, 0)
         os.lseek(fd, 0, os.SEEK_SET)
         os.write(fd, str(os.getpid()).encode("ascii"))
@@ -60,9 +61,11 @@ def exclusive_session(manifest_dir: Path):
             os.lseek(fd, 0, os.SEEK_SET)
             if os.name == "nt":
                 import msvcrt
+
                 msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
             else:
                 import fcntl
+
                 fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 
@@ -77,8 +80,7 @@ def background_prepare_page(context: Any, page: Any, plan: Any, *, inspect_only:
     actual = urlsplit(page.url)
     if actual.path != expected.path:
         raise PortalPreparationError(
-            "Not on the reviewed form path. The isolated browser may need one-time "
-            "interactive university login; no personal Chrome cookies are used."
+            "Not on the reviewed form path. The isolated browser may need one-time interactive university login; no personal Chrome cookies are used."
         )
     start = time.perf_counter()
     if inspect_only:
@@ -130,25 +132,17 @@ def run_background(manifest: Path, output: Path, *, inspect_only: bool = False) 
         ):
             raise PortalPreparationError("Inspect-only page needs an exact HTTPS URL and approved hosts.")
         verified_portal_host(url, tuple(hosts))
-        plan = SimpleNamespace(
-            preview=SimpleNamespace(opportunity_url=url), hosts=tuple(hosts)
-        )
+        plan = SimpleNamespace(preview=SimpleNamespace(opportunity_url=url), hosts=tuple(hosts))
     else:
         plan = plan_from_manifest(data, manifest_dir=manifest.parent)
     from playwright.sync_api import sync_playwright
 
     with exclusive_session(manifest.parent):
         with sync_playwright() as playwright:
-            context = launch_academic_context(
-                playwright, manifest_dir=manifest.parent, headless=True
-            )
+            context = launch_academic_context(playwright, manifest_dir=manifest.parent, headless=True)
             try:
-                page = official_session_page(
-                    context, url=plan.preview.opportunity_url, official_hosts=plan.hosts
-                )
-                report = background_prepare_page(
-                    context, page, plan, inspect_only=inspect_only
-                )
+                page = official_session_page(context, url=plan.preview.opportunity_url, official_hosts=plan.hosts)
+                report = background_prepare_page(context, page, plan, inspect_only=inspect_only)
             finally:
                 context.close()
         report["recorded_utc"] = datetime.now(timezone.utc).isoformat()

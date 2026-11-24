@@ -41,12 +41,14 @@ def evaluate_document(payload: dict, *, today: date) -> dict:
                     evidence=raw["evidence"],
                 )
                 validate_source(source, official_hosts=allowed_hosts, now=datetime.now().astimezone())
-                metadata_valid_sources.append({
-                    "url": source.source_url,
-                    "retrieved_at": source.retrieved_at.isoformat(),
-                    "requirement": source.requirement,
-                    "evidence": source.evidence,
-                })
+                metadata_valid_sources.append(
+                    {
+                        "url": source.source_url,
+                        "retrieved_at": source.retrieved_at.isoformat(),
+                        "requirement": source.requirement,
+                        "evidence": source.evidence,
+                    }
+                )
             except (ValueError, KeyError, TypeError) as error:
                 source_errors.append(str(error))
         # Missing or invalid provenance cannot be silently treated as verified.
@@ -71,19 +73,21 @@ def evaluate_document(payload: dict, *, today: date) -> dict:
         if verdict == "eligible":
             verdict = "needs_review"
             reasons.append("Preliminary eligibility only: independent page verification and human interpretation are still required.")
-        results.append({
-            "institution": entry["institution"],
-            "program": entry["program"],
-            "verdict": verdict,
-            "reasons": reasons,
-            "source_records": metadata_valid_sources,
-            "source_content_verified": False,
-            "human_requirement_reviewed": False,
-            "preliminary_verdict": assessment.verdict.value,
-            "unsourced_requirements": missing,
-            "source_errors": source_errors,
-            "submission_enabled": False,
-        })
+        results.append(
+            {
+                "institution": entry["institution"],
+                "program": entry["program"],
+                "verdict": verdict,
+                "reasons": reasons,
+                "source_records": metadata_valid_sources,
+                "source_content_verified": False,
+                "human_requirement_reviewed": False,
+                "preliminary_verdict": assessment.verdict.value,
+                "unsourced_requirements": missing,
+                "source_errors": source_errors,
+                "submission_enabled": False,
+            }
+        )
     return {"evaluated_on": today.isoformat(), "results": results, "submission_enabled": False}
 
 

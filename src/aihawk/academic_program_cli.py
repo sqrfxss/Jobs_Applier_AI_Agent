@@ -32,9 +32,7 @@ def _money(value):
 def evaluate_programme(payload: dict, *, today: date) -> dict:
     p, a = payload["programme"], payload["applicant"]
     lang = p.get("accepted_languages")
-    rules = None if lang is None else tuple(
-        LanguageRule(str(r["test_name"]), r.get("minimum_score")) for r in lang
-    )
+    rules = None if lang is None else tuple(LanguageRule(str(r["test_name"]), r.get("minimum_score")) for r in lang)
     programme = ProgrammeConditions(
         institution=p["institution"],
         programme=p["name"],
@@ -65,8 +63,7 @@ def evaluate_programme(payload: dict, *, today: date) -> dict:
         "blockers": list(report.blockers),
         "checks_needed": list(report.checks_needed),
         "financial_summary": {
-            key: None if value is None else {"amount": str(value.amount), "currency": value.currency.upper()}
-            for key, value in report.financial_summary
+            key: None if value is None else {"amount": str(value.amount), "currency": value.currency.upper()} for key, value in report.financial_summary
         },
         "family_visa_requires_separate_review": report.family_visa_requires_separate_review,
         "source_content_verified": False,

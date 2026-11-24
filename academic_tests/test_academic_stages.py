@@ -100,13 +100,16 @@ def test_correct_page_only_fills_matching_stage(tmp_path):
     assert page.degree.changes == [("select", "MSc")]
 
 
-@pytest.mark.parametrize("url", [
-    "https://uni.example.edu.evil.test/apply",
-    "http://admissions.uni.example.edu/apply",
-    "https://admissions.uni.example.edu/apply/degree",
-    "https://admissions.uni.example.edu/apply-extra",
-    "https://admissions.uni.example.edu/other",
-])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://uni.example.edu.evil.test/apply",
+        "http://admissions.uni.example.edu/apply",
+        "https://admissions.uni.example.edu/apply/degree",
+        "https://admissions.uni.example.edu/apply-extra",
+        "https://admissions.uni.example.edu/other",
+    ],
+)
 def test_rejects_wrong_page_before_mutating_any_input(tmp_path, url):
     journey = journey_from_manifest(manifest(), manifest_dir=tmp_path)
     page = Page(url)
@@ -115,9 +118,16 @@ def test_rejects_wrong_page_before_mutating_any_input(tmp_path, url):
     assert page.name.changes == []
 
 
-@pytest.mark.parametrize("path", [
-    "//attacker.test/path", "/apply?source=other", "relative/path", "/apply#stage", "",
-])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "//attacker.test/path",
+        "/apply?source=other",
+        "relative/path",
+        "/apply#stage",
+        "",
+    ],
+)
 def test_rejects_ambiguous_stage_paths(tmp_path, path):
     data = manifest()
     data["portal_stages"][1]["expected_path"] = path

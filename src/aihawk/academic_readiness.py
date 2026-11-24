@@ -16,11 +16,18 @@ from aihawk.academic_browser import PortalPreparationError
 
 CONTROL_LINE = re.compile(r"^(?P<index>\d{1,6})\|(?P<kind>Text|Edit|Hyperlink|Button|ListItem)\|(?P<label>[^|]*)\|(?P<state>[^|]*)$")
 ALLOWED_EDIT_STATES = frozenset({"[BLANK]", "[HAS_VALUE; REDACTED]"})
-INTERESTING_UNSET_FIELDS = frozenset({
-    "Country", "Country of birth", "Nationality or citizenship", "Second nationality",
-    "First Preference", "Second Preference", "Third Preference",
-    "Proof of Language Proficiency",
-})
+INTERESTING_UNSET_FIELDS = frozenset(
+    {
+        "Country",
+        "Country of birth",
+        "Nationality or citizenship",
+        "Second nationality",
+        "First Preference",
+        "Second Preference",
+        "Third Preference",
+        "Proof of Language Proficiency",
+    }
+)
 # OpenCampus BMAI groups some tab sections without a "Hide ..." heading. These
 # are exact observed textual landmarks, not predictions of current field values.
 BMAI_SECTION_LANDMARKS = (
@@ -103,10 +110,7 @@ def audit_redacted_snapshot(source: str, *, expected_host: str) -> dict[str, Any
             "empty_file_inputs_at_capture": len(pending_file_inputs),
         },
         "submission_ready": False,
-        "note": (
-            "This is a historical, redacted snapshot only. It cannot establish "
-            "which fields or documents are currently missing, nor a server receipt."
-        ),
+        "note": ("This is a historical, redacted snapshot only. It cannot establish which fields or documents are currently missing, nor a server receipt."),
     }
 
 

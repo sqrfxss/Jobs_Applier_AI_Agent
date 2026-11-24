@@ -45,25 +45,20 @@ class UploadMapping:
             if path.startswith("//") or any(ch in path for ch in ("?", "#", "\r", "\n")) or len(path) > 500:
                 raise PortalPreparationError("Upload path must be an exact absolute path.")
         selectors = (
-            self.input_selector, self.upload_button_selector, self.container_selector,
-            self.receipt_selector, self.remove_selector,
+            self.input_selector,
+            self.upload_button_selector,
+            self.container_selector,
+            self.receipt_selector,
+            self.remove_selector,
         )
         if any(not isinstance(value, str) or not value.strip() or len(value) > 300 for value in selectors):
             raise PortalPreparationError("Invalid or missing reviewed file upload selectors.")
         if self.expand_selector is not None and (
-            not isinstance(self.expand_selector, str)
-            or not self.expand_selector.strip()
-            or len(self.expand_selector) > 300
+            not isinstance(self.expand_selector, str) or not self.expand_selector.strip() or len(self.expand_selector) > 300
         ):
             raise PortalPreparationError("Invalid reviewed accordion expander selector.")
         names = self.expected_existing_files
-        if not isinstance(names, (list, tuple)) or any(
-            not isinstance(name, str)
-            or not name
-            or name != Path(name).name
-            or len(name) > 180
-            for name in names
-        ):
+        if not isinstance(names, (list, tuple)) or any(not isinstance(name, str) or not name or name != Path(name).name or len(name) > 180 for name in names):
             raise PortalPreparationError("Invalid previously approved document names.")
         if len(set(names)) != len(names) or self.field in names:
             raise PortalPreparationError("Duplicate or self-referential prior upload approval.")
@@ -74,16 +69,20 @@ class UploadMapping:
         if not isinstance(allowed, (tuple, list)) or len(allowed) > 30:
             raise PortalPreparationError("Invalid reviewed upload extension allowlist.")
         normalized = tuple(ext.casefold().lstrip(".") for ext in allowed if isinstance(ext, str))
-        if len(normalized) != len(allowed) or len(set(normalized)) != len(normalized) or any(
-            not re.fullmatch(r"[a-z0-9]{1,12}", ext) for ext in normalized
-        ):
+        if len(normalized) != len(allowed) or len(set(normalized)) != len(normalized) or any(not re.fullmatch(r"[a-z0-9]{1,12}", ext) for ext in normalized):
             raise PortalPreparationError("Invalid reviewed upload extension allowlist.")
         object.__setattr__(self, "allowed_extensions", normalized)
         receipt = self.receipt_filename
         if receipt is not None:
-            if (not isinstance(receipt, str) or not receipt.strip() or receipt != receipt.strip()
-                or "/" in receipt or "\\" in receipt or len(receipt) > 180
-                or any(ord(char) < 32 for char in receipt)):
+            if (
+                not isinstance(receipt, str)
+                or not receipt.strip()
+                or receipt != receipt.strip()
+                or "/" in receipt
+                or "\\" in receipt
+                or len(receipt) > 180
+                or any(ord(char) < 32 for char in receipt)
+            ):
                 raise PortalPreparationError("Invalid exact server receipt filename.")
             if Path(receipt).suffix.casefold() != Path(self.field).suffix.casefold():
                 raise PortalPreparationError("Approved receipt has a different document extension.")
@@ -99,7 +98,8 @@ class UploadPlan:
 
     def fingerprint(self) -> str:
         data = {
-            "url": self.application_url, "hosts": self.hosts,
+            "url": self.application_url,
+            "hosts": self.hosts,
             "bindings": [item.__dict__ for item in self.bindings],
             "files": [(name, digest) for name, _, digest in self.attachments],
         }
@@ -130,14 +130,9 @@ def upload_plan_from_manifest(data: dict[str, Any], *, manifest_dir: Path) -> Up
             raise PortalPreparationError("Previously approved upload files must be in the reviewed manifest.")
         extension = Path(mapping.field).suffix.casefold().lstrip(".")
         if mapping.allowed_extensions and extension not in mapping.allowed_extensions:
-            raise PortalPreparationError(
-                "This document's extension is not accepted by the reviewed university upload field."
-            )
+            raise PortalPreparationError("This document's extension is not accepted by the reviewed university upload field.")
     root = manifest_dir.resolve(strict=True)
-    attachments = tuple(
-        (name, (root / name).resolve(), digest)
-        for name, digest in zip(files, preview.attachment_hashes, strict=True)
-    )
+    attachments = tuple((name, (root / name).resolve(), digest) for name, digest in zip(files, preview.attachment_hashes, strict=True))
     for _, path, _ in attachments:
         if not path.is_relative_to(root):
             raise PortalPreparationError("Approved upload escapes the private application folder.")
@@ -152,6 +147,7 @@ def _verify_file(path: Path, expected_digest: str, *, allowed_extensions: tuple[
     if actual != expected_digest:
         raise PortalPreparationError("Approved file changed after review. Stop and approve a new plan.")
     from aihawk.academic_document_gate import is_authored_writing, require_writing_preflight
+
     if is_authored_writing(path):
         try:
             require_writing_preflight(path)
@@ -184,12 +180,7 @@ def receipt_present(container: Any, mapping: UploadMapping, filename: str) -> bo
     expected = {*mapping.expected_existing_files, expected_name}
     # Each listed document must be approved. Require exactly one matching
     # receipt and one portal Remove control per file, never an extra link.
-    return (
-        links.count(expected_name) == 1
-        and len(links) == len(expected)
-        and set(links) == expected
-        and remove == len(links)
-    )
+    return links.count(expected_name) == 1 and len(links) == len(expected) and set(links) == expected and remove == len(links)
 
 
 class UploadNetworkGuard:
@@ -342,8 +333,7 @@ def upload_one(page: Any, context: Any, plan: UploadPlan, mapping: UploadMapping
                 return "uploaded"
             page.wait_for_timeout(200)
         raise PortalPreparationError(
-            "Upload requires BOTH a successful response from the reviewed endpoint "
-            "AND a matching portal receipt. Do not automatically retry."
+            "Upload requires BOTH a successful response from the reviewed endpoint AND a matching portal receipt. Do not automatically retry."
         )
     finally:
         context.unroute("**/*", guard)
@@ -382,10 +372,7 @@ def run_interactive_uploads(manifest: Path, *, prompt=input) -> int:
                         journal.record(step.field, "already_uploaded")
                         print("Rechecked existing university receipt: " + step.field)
                         continue
-                    raise PortalPreparationError(
-                        "A previous upload attempt has no visible university receipt. "
-                        "Stop before retrying or overwriting anything."
-                    )
+                    raise PortalPreparationError("A previous upload attempt has no visible university receipt. Stop before retrying or overwriting anything.")
                 journal.record(step.field, "attempting")
                 try:
                     status = upload_one(page, context, plan, step)

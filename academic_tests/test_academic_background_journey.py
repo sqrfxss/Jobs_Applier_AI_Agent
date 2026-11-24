@@ -1,4 +1,5 @@
 """Real headless Chrome multi-step draft automation; synthetic institutional pages."""
+
 import pytest
 
 from aihawk.academic_browser import PortalPreparationError
@@ -8,8 +9,7 @@ from aihawk.academic_stages import journey_from_manifest
 pytestmark = pytest.mark.browser
 
 ORIGIN = "https://admissions.uni.example.edu"
-SAVES = {"selector": "#save", "label": "Save",
-         "receipt_selector": "#saved", "receipt_text": "Saved draft"}
+SAVES = {"selector": "#save", "label": "Save", "receipt_selector": "#saved", "receipt_text": "Saved draft"}
 
 
 def _journey(tmp_path):
@@ -21,14 +21,20 @@ def _journey(tmp_path):
         "attachments": [],
         "fields": {"name": "Casey Sample", "degree": "MSc"},
         "portal_stages": [
-            {"name": "Identity", "expected_host": "admissions.uni.example.edu",
-             "expected_path": "/apply",
-             "bindings": [{"field": "name", "selector": "#name", "kind": "text"}],
-             "draft_save": SAVES},
-            {"name": "Degree", "expected_host": "admissions.uni.example.edu",
-             "expected_path": "/apply/education",
-             "bindings": [{"field": "degree", "selector": "#degree", "kind": "select"}],
-             "draft_save": SAVES},
+            {
+                "name": "Identity",
+                "expected_host": "admissions.uni.example.edu",
+                "expected_path": "/apply",
+                "bindings": [{"field": "name", "selector": "#name", "kind": "text"}],
+                "draft_save": SAVES,
+            },
+            {
+                "name": "Degree",
+                "expected_host": "admissions.uni.example.edu",
+                "expected_path": "/apply/education",
+                "bindings": [{"field": "degree", "selector": "#degree", "kind": "select"}],
+                "draft_save": SAVES,
+            },
         ],
     }
     return journey_from_manifest(data, manifest_dir=tmp_path), data
@@ -36,8 +42,7 @@ def _journey(tmp_path):
 
 def _html(key, *, persist=True):
     controls = (
-        '<input id="name" type="text">' if key == "name" else
-        '<select id="degree"><option value="">Select</option><option value="MSc">MSc</option></select>'
+        '<input id="name" type="text">' if key == "name" else '<select id="degree"><option value="">Select</option><option value="MSc">MSc</option></select>'
     )
     write = f"sessionStorage.setItem('{key}',document.querySelector('#{key}').value);" if persist else ""
     return f"""<!doctype html><html><body>
@@ -63,12 +68,14 @@ def test_fast_headless_two_stages_save_and_resume(tmp_path):
         browser = playwright.chromium.launch(channel="chrome", headless=True)
         context = browser.new_context(service_workers="block")
         traffic = []
+
         def serve(route):
             traffic.append((route.request.method, route.request.url))
             if route.request.url in endpoints:
                 route.fulfill(status=200, content_type="text/html", body=endpoints[route.request.url])
             else:
                 route.abort()
+
         context.route("**/*", serve)
         page = context.new_page()
         events = []
@@ -95,9 +102,7 @@ def test_draft_receipt_without_saved_server_values_is_rejected(tmp_path):
     with sync.sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="chrome", headless=True)
         context = browser.new_context(service_workers="block")
-        context.route(url, lambda route: route.fulfill(
-            status=200, content_type="text/html", body=_html("name", persist=False)
-        ))
+        context.route(url, lambda route: route.fulfill(status=200, content_type="text/html", body=_html("name", persist=False)))
         page = context.new_page()
         page.goto(url)
         with pytest.raises(PortalPreparationError, match="did not persist"):
@@ -109,19 +114,27 @@ def test_draft_receipt_without_saved_server_values_is_rejected(tmp_path):
 
 def test_final_submit_mislabeled_as_save_is_refused():
     with pytest.raises(PortalPreparationError, match="Save Draft"):
-        _verified_save_action({
-            "selector": "#final", "label": "Submit application",
-            "receipt_selector": "#receipt", "receipt_text": "Done",
-        })
+        _verified_save_action(
+            {
+                "selector": "#final",
+                "label": "Submit application",
+                "receipt_selector": "#receipt",
+                "receipt_text": "Done",
+            }
+        )
 
 
 def test_save_review_rejects_unexpected_extra_actions():
     with pytest.raises(PortalPreparationError, match="metadata"):
-        _verified_save_action({
-            "selector": "#save", "label": "Save",
-            "receipt_selector": "#receipt", "receipt_text": "Saved",
-            "send_referee_emails": True,
-        })
+        _verified_save_action(
+            {
+                "selector": "#save",
+                "label": "Save",
+                "receipt_selector": "#receipt",
+                "receipt_text": "Saved",
+                "send_referee_emails": True,
+            }
+        )
 
 
 def test_headless_tabs_on_one_portal_page_do_not_steal_desktop_focus(tmp_path):
@@ -163,9 +176,9 @@ def test_headless_tabs_on_one_portal_page_do_not_steal_desktop_focus(tmp_path):
     with sync.sync_playwright() as play:
         browser = play.chromium.launch(channel="chrome", headless=True)
         context = browser.new_context(service_workers="block")
-        context.route(ORIGIN+"/apply", lambda route: route.fulfill(status=200,content_type="text/html",body=html))
+        context.route(ORIGIN + "/apply", lambda route: route.fulfill(status=200, content_type="text/html", body=html))
         page = context.new_page()
-        page.goto(ORIGIN+"/apply")
+        page.goto(ORIGIN + "/apply")
         for stage, info in zip(journey.stages, stages):
             result = run_stage(page, context, stage, journey.hosts, info)
             assert result["state"] == "server_saved_verified"
@@ -178,7 +191,11 @@ def test_headless_tabs_on_one_portal_page_do_not_steal_desktop_focus(tmp_path):
 
 def test_save_and_continue_not_implicitly_authorized_as_draft_only():
     with pytest.raises(PortalPreparationError, match="Save Draft"):
-        _verified_save_action({
-            "selector": "#next", "label": "Save and Continue",
-            "receipt_selector": "#saved", "receipt_text": "Saved",
-        })
+        _verified_save_action(
+            {
+                "selector": "#next",
+                "label": "Save and Continue",
+                "receipt_selector": "#saved",
+                "receipt_text": "Saved",
+            }
+        )

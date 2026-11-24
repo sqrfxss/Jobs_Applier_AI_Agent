@@ -97,7 +97,7 @@ class PageSnapshot:
         match = re.search(re.escape(phrase.strip()), self.text, re.IGNORECASE)
         if match is None:
             raise ValueError("Phrase was not present in the captured document.")
-        return self.text[max(0, match.start() - context):min(len(self.text), match.end() + context)].strip()
+        return self.text[max(0, match.start() - context) : min(len(self.text), match.end() + context)].strip()
 
 
 class _SecureRedirect(urllib.request.HTTPRedirectHandler):
@@ -153,6 +153,7 @@ def fetch_official_page(
     if mime == "application/pdf":
         try:
             from pypdf import PdfReader
+
             reader = PdfReader(BytesIO(raw), strict=False)
             if len(reader.pages) > 75:
                 raise SourceFetchError("PDF exceeds the permitted page count.")
@@ -171,7 +172,10 @@ def fetch_official_page(
             parser.feed(content)
             content = parser.text()
     return PageSnapshot(
-        requested_url=url, final_url=final_url,
-        retrieved_at=datetime.now(UTC), sha256=digest,
-        content_type=mime, text=re.sub(r"\s+", " ", content).strip(),
+        requested_url=url,
+        final_url=final_url,
+        retrieved_at=datetime.now(UTC),
+        sha256=digest,
+        content_type=mime,
+        text=re.sub(r"\s+", " ", content).strip(),
     )

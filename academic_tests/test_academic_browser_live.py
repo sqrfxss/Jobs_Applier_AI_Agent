@@ -2,6 +2,7 @@
 
 No real university endpoint is contacted and no application is sent.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -79,12 +80,18 @@ def test_two_page_chromium_prepares_separate_fields_without_any_submit(tmp_path)
         "fields": {"legal_name": "Casey Sample", "degree": "MSc"},
         "attachments": [],
         "portal_stages": [
-            {"name": "Identity", "expected_host": "admissions.uni.example.edu",
-             "expected_path": "/apply",
-             "bindings": [{"field": "legal_name", "selector": "#legal", "kind": "text"}]},
-            {"name": "Degree", "expected_host": "admissions.uni.example.edu",
-             "expected_path": "/apply/degree",
-             "bindings": [{"field": "degree", "selector": "#degree", "kind": "select"}]},
+            {
+                "name": "Identity",
+                "expected_host": "admissions.uni.example.edu",
+                "expected_path": "/apply",
+                "bindings": [{"field": "legal_name", "selector": "#legal", "kind": "text"}],
+            },
+            {
+                "name": "Degree",
+                "expected_host": "admissions.uni.example.edu",
+                "expected_path": "/apply/degree",
+                "bindings": [{"field": "degree", "selector": "#degree", "kind": "select"}],
+            },
         ],
     }
     journey = journey_from_manifest(manifest, manifest_dir=tmp_path)
@@ -105,10 +112,14 @@ def test_two_page_chromium_prepares_separate_fields_without_any_submit(tmp_path)
     with sync_api.sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="chrome", headless=True)
         context = browser.new_context(service_workers="block")
-        context.route("**/*", lambda route: route.fulfill(
-            status=200, content_type="text/html",
-            body=pages.get(route.request.url, "<h1>Unexpected navigation</h1>"),
-        ))
+        context.route(
+            "**/*",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="text/html",
+                body=pages.get(route.request.url, "<h1>Unexpected navigation</h1>"),
+            ),
+        )
         page = context.new_page()
         page.goto(first)
         guard = PreparationNetworkGuard(journey.hosts)
@@ -144,10 +155,7 @@ def test_hidden_file_input_directly_attached_without_native_file_chooser(tmp_pat
         "portal_bindings": [{"field": "proof.pdf", "selector": "#hidden-upload", "kind": "upload"}],
     }
     plan = plan_from_manifest(manifest, manifest_dir=tmp_path)
-    html = (
-        "<input type='file' id='hidden-upload' style='display:none'>"
-        "<button type='submit' id='danger'>Submit application</button>"
-    )
+    html = "<input type='file' id='hidden-upload' style='display:none'><button type='submit' id='danger'>Submit application</button>"
     with sync_api.sync_playwright() as p:
         browser = p.chromium.launch(channel="chrome", headless=True)
         context = browser.new_context(service_workers="block")
@@ -157,9 +165,7 @@ def test_hidden_file_input_directly_attached_without_native_file_chooser(tmp_pat
         page.on("filechooser", lambda chooser: chooser_events.append(chooser))
         page.goto(url)
         assert prepare_fields(page, plan) == ("proof.pdf",)
-        assert page.locator("#hidden-upload").evaluate(
-            "(e) => Array.from(e.files).map(f => f.name)"
-        ) == ["proof.pdf"]
+        assert page.locator("#hidden-upload").evaluate("(e) => Array.from(e.files).map(f => f.name)") == ["proof.pdf"]
         assert chooser_events == []
         assert page.locator("#danger").count() == 1
         context.close()
@@ -181,16 +187,18 @@ def test_guarded_ajax_upload_receipt_and_idempotence_without_file_picker(tmp_pat
         "applicant_id": "synthetic-user",
         "fields": {},
         "attachments": ["proof.pdf"],
-        "portal_uploads": [{
-            "field": "proof.pdf",
-            "input_selector": "#proof",
-            "upload_button_selector": "#proof-upload",
-            "container_selector": "#proof-container",
-            "receipt_selector": ".file a",
-            "remove_selector": "button.remove",
-            "expected_path": "/apply",
-            "upload_endpoint_path": "/file/ajax",
-        }],
+        "portal_uploads": [
+            {
+                "field": "proof.pdf",
+                "input_selector": "#proof",
+                "upload_button_selector": "#proof-upload",
+                "container_selector": "#proof-container",
+                "receipt_selector": ".file a",
+                "remove_selector": "button.remove",
+                "expected_path": "/apply",
+                "upload_endpoint_path": "/file/ajax",
+            }
+        ],
     }
     plan = upload_plan_from_manifest(data, manifest_dir=tmp_path)
     html = """<html><body><section id="proof-container">
@@ -216,6 +224,7 @@ def test_guarded_ajax_upload_receipt_and_idempotence_without_file_picker(tmp_pat
     with sync_api.sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="chrome", headless=True)
         context = browser.new_context(service_workers="block")
+
         def routes(route):
             requests.append((route.request.method, route.request.url))
             if route.request.url == url:
@@ -224,6 +233,7 @@ def test_guarded_ajax_upload_receipt_and_idempotence_without_file_picker(tmp_pat
                 route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True}))
             else:
                 route.fulfill(status=500, body="unexpected")
+
         context.route("**/*", routes)
         page = context.new_page()
         chooser_events = []
@@ -249,10 +259,16 @@ def test_isolated_persistent_browser_keeps_only_its_synthetic_login(tmp_path):
     fake_url = "https://admissions.uni.example.edu/apply"
     with sync_api.sync_playwright() as playwright:
         first = launch_academic_context(playwright, manifest_dir=tmp_path, headless=True)
-        first.add_cookies([{
-            "name": "synthetic_session", "value": "test-only",
-            "url": fake_url, "expires": int(time.time()) + 3600,
-        }])
+        first.add_cookies(
+            [
+                {
+                    "name": "synthetic_session",
+                    "value": "test-only",
+                    "url": fake_url,
+                    "expires": int(time.time()) + 3600,
+                }
+            ]
+        )
         assert any(c["name"] == "synthetic_session" for c in first.cookies([fake_url]))
         first.close()
 
@@ -273,11 +289,14 @@ def test_real_chromium_inventory_discovers_hidden_file_control(tmp_path):
     with sync_api.sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="chrome", headless=True)
         context = browser.new_context(service_workers="block")
-        context.route(url, lambda route: route.fulfill(
-            content_type="text/html",
-            body="<label for='proof'>Proof</label><input id='proof' type='file' style='display:none'>"
-                 "<input id='secret' type='password' value='do-not-export'>",
-        ))
+        context.route(
+            url,
+            lambda route: route.fulfill(
+                content_type="text/html",
+                body="<label for='proof'>Proof</label><input id='proof' type='file' style='display:none'>"
+                "<input id='secret' type='password' value='do-not-export'>",
+            ),
+        )
         page = context.new_page()
         page.goto(url)
         result = inspect_controls(page, official_hosts=("uni.example.edu",))
@@ -302,12 +321,18 @@ def test_onchange_auto_upload_is_guarded_before_file_attachment(tmp_path):
         "applicant_id": "synthetic",
         "fields": {},
         "attachments": ["auto.pdf"],
-        "portal_uploads": [{
-            "field": "auto.pdf", "input_selector": "#auto",
-            "upload_button_selector": "#auto-upload", "container_selector": "#area",
-            "receipt_selector": ".file a", "remove_selector": "button.remove",
-            "expected_path": "/apply", "upload_endpoint_path": "/file/ajax",
-        }],
+        "portal_uploads": [
+            {
+                "field": "auto.pdf",
+                "input_selector": "#auto",
+                "upload_button_selector": "#auto-upload",
+                "container_selector": "#area",
+                "receipt_selector": ".file a",
+                "remove_selector": "button.remove",
+                "expected_path": "/apply",
+                "upload_endpoint_path": "/file/ajax",
+            }
+        ],
     }
     plan = upload_plan_from_manifest(manifest, manifest_dir=tmp_path)
     html = """<section id="area"><input id="auto" type="file" hidden>
@@ -331,6 +356,7 @@ def test_onchange_auto_upload_is_guarded_before_file_attachment(tmp_path):
     with sync_api.sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="chrome", headless=True)
         context = browser.new_context(service_workers="block")
+
         def synthetic(route):
             intercepted.append(route.request.url)
             if route.request.url == url:
@@ -339,6 +365,7 @@ def test_onchange_auto_upload_is_guarded_before_file_attachment(tmp_path):
                 route.fulfill(content_type="application/json", body='{"ok":true}')
             else:
                 route.fulfill(status=400, body="unexpected")
+
         context.route("**/*", synthetic)
         page = context.new_page()
         page.goto(url)
@@ -363,14 +390,19 @@ def test_reviewed_accordion_opens_only_its_file_section(tmp_path):
         "applicant_id": "synthetic",
         "fields": {},
         "attachments": ["degree.pdf"],
-        "portal_uploads": [{
-            "field": "degree.pdf", "input_selector": "#degree",
-            "upload_button_selector": "#degree-upload",
-            "container_selector": "#degree-section",
-            "receipt_selector": ".file a", "remove_selector": "button.remove",
-            "expected_path": "/apply", "upload_endpoint_path": "/file/ajax",
-            "expand_selector": "#expand-degree",
-        }],
+        "portal_uploads": [
+            {
+                "field": "degree.pdf",
+                "input_selector": "#degree",
+                "upload_button_selector": "#degree-upload",
+                "container_selector": "#degree-section",
+                "receipt_selector": ".file a",
+                "remove_selector": "button.remove",
+                "expected_path": "/apply",
+                "upload_endpoint_path": "/file/ajax",
+                "expand_selector": "#expand-degree",
+            }
+        ],
     }
     plan = upload_plan_from_manifest(data, manifest_dir=tmp_path)
     html = """<button id='expand-degree' type='button'
@@ -396,6 +428,7 @@ def test_reviewed_accordion_opens_only_its_file_section(tmp_path):
     with sync_api.sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="chrome", headless=True)
         context = browser.new_context(service_workers="block")
+
         def routes(route):
             if route.request.url == url:
                 route.fulfill(content_type="text/html", body=html)
@@ -403,6 +436,7 @@ def test_reviewed_accordion_opens_only_its_file_section(tmp_path):
                 route.fulfill(content_type="application/json", body='{"ok":true}')
             else:
                 route.fulfill(status=403, body="disallowed")
+
         context.route("**/*", routes)
         page = context.new_page()
         page.goto(url)
@@ -428,16 +462,18 @@ def test_fake_portal_receipt_without_upload_response_is_rejected(tmp_path):
         "applicant_id": "synthetic",
         "fields": {},
         "attachments": ["fake.pdf"],
-        "portal_uploads": [{
-            "field": "fake.pdf",
-            "input_selector": "#proof",
-            "upload_button_selector": "#upload",
-            "container_selector": "#proof-area",
-            "receipt_selector": ".file a",
-            "remove_selector": "button.remove",
-            "expected_path": "/apply",
-            "upload_endpoint_path": "/file/ajax",
-        }],
+        "portal_uploads": [
+            {
+                "field": "fake.pdf",
+                "input_selector": "#proof",
+                "upload_button_selector": "#upload",
+                "container_selector": "#proof-area",
+                "receipt_selector": ".file a",
+                "remove_selector": "button.remove",
+                "expected_path": "/apply",
+                "upload_endpoint_path": "/file/ajax",
+            }
+        ],
     }
     plan = upload_plan_from_manifest(manifest, manifest_dir=tmp_path)
     html = """<section id='proof-area'>
@@ -476,12 +512,18 @@ def test_failed_ajax_response_cannot_confirm_upload_even_with_dom_link(tmp_path)
         "applicant_id": "synthetic",
         "fields": {},
         "attachments": ["proof.pdf"],
-        "portal_uploads": [{
-            "field": "proof.pdf", "input_selector": "#proof",
-            "upload_button_selector": "#upload", "container_selector": "#proof-area",
-            "receipt_selector": ".file a", "remove_selector": "button.remove",
-            "expected_path": "/apply", "upload_endpoint_path": "/file/ajax",
-        }],
+        "portal_uploads": [
+            {
+                "field": "proof.pdf",
+                "input_selector": "#proof",
+                "upload_button_selector": "#upload",
+                "container_selector": "#proof-area",
+                "receipt_selector": ".file a",
+                "remove_selector": "button.remove",
+                "expected_path": "/apply",
+                "upload_endpoint_path": "/file/ajax",
+            }
+        ],
     }
     plan = upload_plan_from_manifest(manifest, manifest_dir=tmp_path)
     html = """<section id='proof-area'>
@@ -522,17 +564,19 @@ def test_second_document_in_multifile_field_preserves_original(tmp_path):
         "applicant_id": "synthetic",
         "fields": {},
         "attachments": ["original.pdf", "certified.pdf"],
-        "portal_uploads": [{
-            "field": "certified.pdf",
-            "input_selector": "#add-translation",
-            "upload_button_selector": "#upload-translation",
-            "container_selector": "#transcripts",
-            "receipt_selector": ".file a",
-            "remove_selector": "button.remove",
-            "expected_path": "/apply",
-            "upload_endpoint_path": "/file/ajax",
-            "expected_existing_files": ["original.pdf"],
-        }],
+        "portal_uploads": [
+            {
+                "field": "certified.pdf",
+                "input_selector": "#add-translation",
+                "upload_button_selector": "#upload-translation",
+                "container_selector": "#transcripts",
+                "receipt_selector": ".file a",
+                "remove_selector": "button.remove",
+                "expected_path": "/apply",
+                "upload_endpoint_path": "/file/ajax",
+                "expected_existing_files": ["original.pdf"],
+            }
+        ],
     }
     plan = upload_plan_from_manifest(payload, manifest_dir=tmp_path)
     html = """<section id='transcripts'>
@@ -557,6 +601,7 @@ def test_second_document_in_multifile_field_preserves_original(tmp_path):
         browser = playwright.chromium.launch(channel="chrome", headless=True)
         context = browser.new_context(service_workers="block")
         requests = []
+
         def route_handler(route):
             requests.append(route.request.url)
             if route.request.url == url:
@@ -565,6 +610,7 @@ def test_second_document_in_multifile_field_preserves_original(tmp_path):
                 route.fulfill(status=200, content_type="application/json", body='{"ok":true}')
             else:
                 route.fulfill(status=500, body="unexpected")
+
         context.route("**/*", route_handler)
         page = context.new_page()
         page.goto(url)

@@ -33,26 +33,23 @@ def render_preview(
         raise ValueError("Reserved review field names are not permitted.")
     t = html.escape(title, quote=True)
     link = html.escape(preview.opportunity_url, quote=True)
-    rows = "\n".join(
-        f"<tr><th scope='row'>{html.escape(k)}</th><td>{html.escape(v)}</td></tr>"
-        for k, v in preview.fields
-    )
-    cites = "\n".join(
-        f"<li>{html.escape(src)}</li>" for src in sources
-    ) or "<li>No reviewed requirements supplied</li>"
-    attachments = "\n".join(
-        f"<li>{html.escape(item)}</li>" for item in preview.attachment_hashes
-    ) or "<li>None</li>"
+    rows = "\n".join(f"<tr><th scope='row'>{html.escape(k)}</th><td>{html.escape(v)}</td></tr>" for k, v in preview.fields)
+    cites = "\n".join(f"<li>{html.escape(src)}</li>" for src in sources) or "<li>No reviewed requirements supplied</li>"
+    attachments = "\n".join(f"<li>{html.escape(item)}</li>" for item in preview.attachment_hashes) or "<li>None</li>"
     mapping_rows = "".join(
         "<tr><td>" + html.escape(field) + "</td><td>" + html.escape(selector) + "</td><td>" + html.escape(kind) + "</td></tr>"
         for field, selector, kind in binding_summary
     )
     mapping_html = (
-        "<h2>Exact browser field mapping (review before preparation)</h2><table><thead>"
-        "<tr><th>Reviewed field</th><th>CSS selector</th><th>Action</th></tr></thead>"
-        f"<tbody>{mapping_rows}</tbody></table>"
-        f"<p>Preparation fingerprint: <code>{html.escape(binding_fingerprint or '')}</code></p>"
-    ) if binding_summary else ""
+        (
+            "<h2>Exact browser field mapping (review before preparation)</h2><table><thead>"
+            "<tr><th>Reviewed field</th><th>CSS selector</th><th>Action</th></tr></thead>"
+            f"<tbody>{mapping_rows}</tbody></table>"
+            f"<p>Preparation fingerprint: <code>{html.escape(binding_fingerprint or '')}</code></p>"
+        )
+        if binding_summary
+        else ""
+    )
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">

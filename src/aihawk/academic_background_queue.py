@@ -1,4 +1,5 @@
 """Sequential approved academic draft queue (headless, resumable and no email)."""
+
 from __future__ import annotations
 
 import json
@@ -96,9 +97,7 @@ def run_approved_queue(queue_file: Path, report_file: Path) -> dict:
             out["elapsed_seconds"] = round(time.perf_counter() - started, 3)
             _atomic_json(report_file, out)
             return out
-    out["result"] = "completed_with_review_items" if any(
-        item["state"] == "stopped_needs_review" for item in out["items"]
-    ) else "queue_draft_work_complete"
+    out["result"] = "completed_with_review_items" if any(item["state"] == "stopped_needs_review" for item in out["items"]) else "queue_draft_work_complete"
     out["elapsed_seconds"] = round(time.perf_counter() - started, 3)
     out["recorded_utc"] = datetime.now(timezone.utc).isoformat()
     _atomic_json(report_file, out)

@@ -36,11 +36,13 @@ class AcademicReview:
         if now.tzinfo is None:
             raise ValueError("Timestamp must be timezone-aware.")
         # No form contents or applicant secrets in audit events.
-        self.history.append({
-            "time": now.astimezone(UTC).isoformat(),
-            "action": action,
-            "fingerprint": self.application.fingerprint(),
-        })
+        self.history.append(
+            {
+                "time": now.astimezone(UTC).isoformat(),
+                "action": action,
+                "fingerprint": self.application.fingerprint(),
+            }
+        )
 
     def mark_reviewed(self, *, reviewer: str, now: datetime) -> None:
         if self.state is not WorkflowState.DRAFT or not reviewer.strip():
