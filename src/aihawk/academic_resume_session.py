@@ -211,7 +211,7 @@ def run(folder, *, auto=False):
                         capture_session_error(page, folder, exc)
                     # Automatically resume once after a later manual sign-in.
                     # No password, MFA or CAPTCHA is solved by the agent.
-                    if last_batch_status == "authentication_required":
+                    if last_batch_status in ("authentication_required", "awaiting_manual_login"):
                         from time import monotonic
 
                         next_report = 0

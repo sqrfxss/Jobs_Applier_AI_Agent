@@ -176,6 +176,25 @@ def apply_plan(page, folder, hosts, title, plan):
         marker = page.get_by_text(heading, exact=True)
     if marker.count() != 1 or not marker.is_visible():
         raise PortalPreparationError("Section identity not verified")
+    # Fail fast before typing any of this stage's fields. In earlier runs,
+    # the postcode was changed first, then a later address-line conflict
+    # blocked the stage and left an unsaved partially edited form.
+    # Invisible fields (e.g. an unexpanded MSc repeater) are intentionally
+    # excluded until the institution reveals them.
+    for item in plan.get("actions", []):
+        if item.get("type") != "fill":
+            continue
+        selector = item.get("selector")
+        if not isinstance(selector, str):
+            continue
+        loc = page.locator(selector)
+        if loc.count() != 1 or not loc.is_visible() or not loc.is_enabled():
+            continue
+        _control(page, selector, "fill")
+        expected = str(item["value"])
+        existing = loc.input_value()
+        if existing not in ("", expected) and existing != item.get("reviewed_previous"):
+            raise PortalPreparationError("Preflight existing value conflict: " + selector)
     results = []
     for index, item in enumerate(plan.get("actions", [])):
         typ = item.get("type")

@@ -32,6 +32,30 @@ def auth_expired(page, hosts, title):
         return True
 
 
+def settle_project_identity(page, hosts, title, *, seconds=5):
+    """Classify a delayed university redirect without replaying a POST.
+
+    A blank/intermediate document is not evidence that the login is still
+    valid. Stop the batch instead of trying subsequent sections on it.
+    """
+    from time import monotonic
+
+    deadline = monotonic() + seconds
+    while not page.is_closed():
+        if auth_expired(page, hosts, title):
+            return "authentication_required"
+        try:
+            identity = page.get_by_text(title, exact=True)
+            if identity.count() == 1 and identity.is_visible():
+                return "authenticated"
+        except Exception:
+            pass
+        if monotonic() >= deadline:
+            break
+        page.wait_for_timeout(250)
+    return "unverified_portal"
+
+
 def _open_modal(page):
     dialogs = page.get_by_role("dialog")
     return any(dialogs.nth(i).is_visible() for i in range(dialogs.count()))
@@ -144,6 +168,20 @@ def run_batch(page, folder, hosts, title, plan):
             kind = type(exc).__name__
             reason = str(exc)[:180]
             row["error_type"] = kind
+            # Section navigations may replace the DOM asynchronously. If the
+            # project vanished, settle the redirect before touching any other
+            # university form. No speculative request or login replay.
+            identity = settle_project_identity(page, hosts, title)
+            if identity == "authentication_required":
+                stage_record("awaiting_manual_login", reason="Portal session returned to university login")
+                report["status"] = "awaiting_manual_login"
+                record()
+                return report
+            if identity == "unverified_portal":
+                stage_record("portal_identity_unverified", reason="Project identity absent after university navigation")
+                report["status"] = "portal_unverified"
+                record()
+                return report
             if auth_expired(page, hosts, title):
                 stage_record("awaiting_manual_login", reason=reason)
                 report["status"] = "awaiting_manual_login"
