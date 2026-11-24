@@ -24,11 +24,31 @@ def _one(loc, desc, *, visible=True):
 
 
 def _modal(page, heading):
-    checks = [page.get_by_role("dialog"), page.locator("div.modal:visible"), page.locator(".modal-dialog:visible")]
-    for c in checks:
-        if c.count() == 1 and c.is_visible() and c.get_by_text(heading, exact=True).count() > 0:
-            return c
-    raise PortalPreparationError("Exeter upload modal not uniquely identified")
+    """Wait for the institution's asynchronous upload modal to become visible.
+
+    Exeter injects the HTML5 widget after a button click. Clicking with
+    no_wait_after=True and immediately counting dialogs was a race condition;
+    no upload had occurred when the former code raised. The wait does not
+    repeat the trigger or send a file and has a strict bounded duration.
+    """
+    from time import monotonic
+
+    end = monotonic() + 6
+    while monotonic() < end:
+        heading_node = page.get_by_text(heading, exact=True)
+        checks = [
+            page.get_by_role("dialog").filter(has=heading_node),
+            page.locator("div.modal:visible").filter(has=heading_node),
+            page.locator(".modal-dialog:visible").filter(has=heading_node),
+        ]
+        for candidate in checks:
+            try:
+                if candidate.count() == 1 and candidate.is_visible():
+                    return candidate
+            except Exception:
+                continue
+        page.wait_for_timeout(150)
+    raise PortalPreparationError("Exeter upload modal not uniquely identified after bounded wait")
 
 
 def _trigger(page, role, index):
@@ -101,8 +121,11 @@ def upload(page, folder, hosts, item):
     current = normalized_visible(dialog.inner_text(timeout=2500))
     name = normalized_visible(path.name)
     if name not in current:
-        if re.search(r"awaiting upload|uploaded|queued|pending upload", current, re.I):
-            raise PortalPreparationError("A different file is already queued; manual reconciliation required")
+        if (
+            re.search(r"awaiting upload|uploaded|queued|pending upload", current, re.I)
+            or dialog.get_by_role("link", name=re.compile(r"^Delete\s+", re.I)).count() > 0
+        ):
+            raise PortalPreparationError("A different queued or existing file is present; never duplicate an unverified upload")
         ActionBudget().reserve_url(page.url, "upload", hosts)
         node.set_input_files(str(path), timeout=7000)
         # Do not assume the file input keeps its value: Exeter's component
