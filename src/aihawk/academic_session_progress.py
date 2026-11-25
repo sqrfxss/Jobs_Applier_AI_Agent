@@ -14,6 +14,7 @@ from pathlib import Path
 from aihawk.academic_outreach_workflow import atomic_json
 from aihawk.academic_browser import PortalPreparationError
 from aihawk.academic_field_journal import record as field_record
+from aihawk.academic_value_comparison import formatting_equivalent
 
 SCHEMA = "aihawk.session.progress.v2"
 FILE = "Session_Progress.json"
@@ -149,7 +150,11 @@ def verify_stage(page, stage, hosts, title, *, navigate_to=True, folder=None):
                     raise PortalPreparationError("Stored attachment receipt missing")
             else:
                 node = _single(page.locator(action["selector"]), typ)
-                if typ == "fill" and node.input_value() != str(action["value"]):
+                if (
+                    typ == "fill"
+                    and node.input_value() != str(action["value"])
+                    and not formatting_equivalent(action["selector"], str(action["value"]), node.input_value())
+                ):
                     raise PortalPreparationError("Stored text field mismatch: " + action["selector"])
                 elif typ == "select":
                     label = node.locator("option:checked")
