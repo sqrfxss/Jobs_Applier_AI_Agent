@@ -42,6 +42,14 @@ def inventory(page, hosts, title):
     )
 
 
+def _login_redirected(page):
+    """Recognize an explicit university login URL without waiting for the DOM."""
+    from urllib.parse import urlsplit
+
+    path = urlsplit(page.url).path.casefold()
+    return "/siw_ipp_lgn" in path or "/login" in path
+
+
 def navigate(page, hosts, title, section, expected_heading=None, force=False):
     _guard(page, hosts, title)
     if section not in SECTIONS:
@@ -100,6 +108,8 @@ def navigate(page, hosts, title, section, expected_heading=None, force=False):
             deadline = monotonic() + 12
             while monotonic() < deadline:
                 page.wait_for_timeout(200)
+                if _login_redirected(page):
+                    raise PortalPreparationError("University login required after section navigation")
                 if not arrivals:
                     continue
                 try:
@@ -124,6 +134,8 @@ def navigate(page, hosts, title, section, expected_heading=None, force=False):
         last_error = None
         while monotonic() < end:
             page.wait_for_timeout(250)
+            if _login_redirected(page):
+                raise PortalPreparationError("University login required after section navigation")
             try:
                 _guard(page, hosts, title)
                 if expected_heading:
@@ -136,7 +148,10 @@ def navigate(page, hosts, title, section, expected_heading=None, force=False):
         else:
             raise PortalPreparationError("Authenticated project did not reappear after section navigation") from last_error
     except Exception as error:
-        # Stop on a failed transition without replaying an unknown POST.
+        # Do not replay POST navigation. Report a known login redirect
+        # rather than hiding it behind a generic timeout.
+        if _login_redirected(page):
+            raise PortalPreparationError("University login required after section navigation") from error
         raise PortalPreparationError("Section navigation failed; browser preserved for review") from error
 
 
