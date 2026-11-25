@@ -81,7 +81,14 @@ def inspect_page(page, hosts, title):
         item = page.get_by_role("button", name=name, exact=True)
         if matched and item.count() == 1 and item.is_visible():
             sections.append(name)
-    login = page.locator('input[type="password"]:visible').count() > 0
+    # SITS may serve an empty login transition before a password input exists.
+    # Recognize the explicit institutional login path immediately.
+    login_path = urlsplit(page.url).path.casefold()
+    login = (
+        "/siw_ipp_lgn" in login_path
+        or "/login" in login_path
+        or page.locator('input[type="password"]:visible').count() > 0
+    )
     return {
         "status": "project_session_verified" if matched and sections else "manual_sign_in_required" if login else "unverified_page",
         "host": urlsplit(page.url).hostname,
