@@ -173,6 +173,20 @@ def _write_runtime(folder, status, **extra):
 
 def run(folder, *, auto=False):
     folder = folder.resolve(strict=True)
+    from aihawk.academic_submission_guard import submission_record
+
+    completed = submission_record(folder)
+    if completed is not None:
+        _write_runtime(
+            folder, "already_submitted",
+            submission_source=completed["source"], awaiting_manual_commands=False,
+        )
+        print(json.dumps({
+            "status": "already_submitted", "submission_source": completed["source"],
+            "university_receipt_verified": completed.get("university_receipt_verified", False),
+            "no_additional_submission": True,
+        }), flush=True)
+        return
     config, url, hosts, title = read_case(folder)
     if auto and not (folder / "Session_Batch_Plan.json").is_file():
         raise PortalPreparationError("Reviewed batch mapping missing; no browser opened.")
