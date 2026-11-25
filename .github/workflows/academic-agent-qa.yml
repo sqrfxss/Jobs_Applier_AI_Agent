@@ -1,0 +1,42 @@
+name: Academic agent QA
+
+on:
+  pull_request:
+    paths:
+      - "src/aihawk/academic*.py"
+      - "src/aihawk/official_fetch.py"
+      - "academic_tests/**"
+      - "docs/academic_agent.md"
+      - "pyproject.toml"
+      - ".github/workflows/academic-agent-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  academic-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install package and academic test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[academic]" pytest
+          python -m playwright install --with-deps chrome
+      - name: Run isolated academic test suite
+        run: |
+          mkdir -p reports
+          python -m pytest -q academic_tests --junitxml=reports/academic-test-results.xml
+      - name: Preserve test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: academic-test-results
+          path: reports/academic-test-results.xml
+          if-no-files-found: ignore
