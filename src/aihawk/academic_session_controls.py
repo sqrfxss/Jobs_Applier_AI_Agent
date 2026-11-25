@@ -11,6 +11,7 @@ from aihawk.academic_custom_controls import custom_select, modal_upload
 from aihawk.academic_exeter_upload import upload as exeter_upload
 from aihawk.academic_exeter_react_select import select as react_select
 from aihawk.academic_field_journal import record as field_record, validation_labels, reconcile_summary
+from aihawk.academic_submission_guard import require_open_application
 
 SECTIONS = ("About You", "Address", "Qualifications", "Employment", "References", "Additional Information", "Declaration and Submission")
 FORBIDDEN = re.compile(r"(?i)password|passcode|otp|captcha|submit|declarat|signatur|payment|consent|send invitation|send reference|confirm.*accuracy")
@@ -178,6 +179,7 @@ def _control(page, selector, expected_type):
 
 
 def apply_plan(page, folder, hosts, title, plan):
+    require_open_application(folder)
     _guard(page, hosts, title)
     if plan.get("schema") != "aihawk.session.draft.v1" or plan.get("project_title") != title:
         raise PortalPreparationError("Reviewed project plan required")
@@ -371,6 +373,8 @@ def apply_plan(page, folder, hosts, title, plan):
 
 
 def save_draft(page, hosts, title, expected_next_heading=None, folder=None):
+    if folder is not None:
+        require_open_application(folder)
     _guard(page, hosts, title)
     button = _one(page.get_by_role("button", name="Save and continue", exact=True))
     if page.get_by_role("button", name="Submit your application", exact=True).count():
