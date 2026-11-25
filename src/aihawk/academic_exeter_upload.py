@@ -53,11 +53,19 @@ def _modal(page, heading):
 
 def _trigger(page, role, index):
     name = f"Upload {role}"
-    buttons = page.get_by_role("button", name=re.compile(r"^" + re.escape(name) + r"\s*\d*\s*$", re.I))
+    # Exeter's HTML5 badge sometimes decodes as "Upload CV�� 1" instead of
+    # "Upload CV 1". A strict accessible-name regex then misses a real button.
+    # Normalize only Unicode encoding artifacts, not arbitrary extra words:
+    # we must never click a similarly named destructive action.
+    buttons = page.get_by_role("button")
     matches = []
     for i in range(buttons.count()):
         x = buttons.nth(i)
-        if x.is_visible() and x.is_enabled():
+        if not (x.is_visible() and x.is_enabled()):
+            continue
+        raw = normalized_visible(x.inner_text(timeout=1500))
+        label = re.sub(r"[\ufffd\u200b\u200c\u200d]", "", raw)
+        if re.fullmatch(re.escape(name) + r"(?:\s*\d+)?\s*", label, re.I):
             matches.append(x)
     if index is None and len(matches) != 1:
         raise PortalPreparationError("Exeter attachment role is repeated; reviewed ordinal required")
