@@ -25,6 +25,12 @@ def await_authentication(page, folder, hosts, title, *, poll_ms=1000, limit_seco
             if state == "project_session_verified":
                 checkpoint(folder, {"status": "authenticated_project_restored", "final_submission": False})
                 return True
+            if state == "manual_sign_in_required":
+                # The outer session watches for an actual user login. There is
+                # no benefit in polling the same known login screen for 20 s
+                # before returning the actionable authentication state.
+                checkpoint(folder, {"status": "waiting_for_manual_login", "final_submission": False})
+                return False
             if state != previous:
                 checkpoint(
                     folder,
