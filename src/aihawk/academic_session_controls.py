@@ -12,6 +12,7 @@ from aihawk.academic_exeter_upload import upload as exeter_upload
 from aihawk.academic_exeter_react_select import select as react_select
 from aihawk.academic_field_journal import record as field_record, validation_labels, reconcile_summary
 from aihawk.academic_submission_guard import require_open_application
+from aihawk.academic_value_comparison import formatting_equivalent
 
 SECTIONS = ("About You", "Address", "Qualifications", "Employment", "References", "Additional Information", "Declaration and Submission")
 FORBIDDEN = re.compile(r"(?i)password|passcode|otp|captcha|submit|declarat|signatur|payment|consent|send invitation|send reference|confirm.*accuracy")
@@ -210,7 +211,7 @@ def apply_plan(page, folder, hosts, title, plan):
         _control(page, selector, "fill")
         expected = str(item["value"])
         existing = loc.input_value()
-        if existing not in ("", expected) and existing != item.get("reviewed_previous"):
+        if existing not in ("", expected) and existing != item.get("reviewed_previous") and not formatting_equivalent(selector, expected, existing):
             raise PortalPreparationError("Preflight existing value conflict: " + selector)
     results = []
     for index, item in enumerate(plan.get("actions", [])):
@@ -265,9 +266,9 @@ def apply_plan(page, folder, hosts, title, plan):
             if typ == "fill":
                 value = str(item["value"])
                 old = x.input_value()
-                if old not in ("", value) and old != item.get("reviewed_previous"):
+                if old not in ("", value) and old != item.get("reviewed_previous") and not formatting_equivalent(item["selector"], value, old):
                     raise PortalPreparationError("Existing value conflict: " + item["selector"])
-                if old != value:
+                if old != value and not formatting_equivalent(item["selector"], value, old):
                     x.fill(value, timeout=5000)
                     # A number of university date widgets discard a programmatic
                     # fill after blur while accepting genuine keyboard events.
@@ -316,7 +317,7 @@ def apply_plan(page, folder, hosts, title, plan):
                         }""",
                             {"year": parsed.year, "month": parsed.month, "day": parsed.day},
                         )
-                if x.input_value() != value:
+                if x.input_value() != value and not formatting_equivalent(item["selector"], value, x.input_value()):
                     raise PortalPreparationError("Text readback failed at " + item["selector"] + "; portal normalized, cleared or rejected the reviewed value")
             elif typ == "select":
                 options = x.locator("option").evaluate_all("xs=>xs.map(x=>({value:x.value,label:x.text}))")
