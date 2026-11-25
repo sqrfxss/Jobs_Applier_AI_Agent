@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from aihawk.academic_browser import PortalPreparationError
 from aihawk.academic_field_journal import seed_plan, record as field_record
 from aihawk.academic_outreach_workflow import atomic_json
+from aihawk.academic_submission_guard import require_open_application
 from aihawk.academic_session_progress import (
     verify_stage,
     should_skip_verified_stage,
@@ -65,6 +66,7 @@ def run_batch(page, folder, hosts, title, plan):
     from aihawk.academic_session_controls import navigate, apply_plan, save_draft, inventory
 
     folder = Path(folder).resolve(strict=True)
+    require_open_application(folder)
     if plan.get("schema") != "aihawk.session.batch.v1" or plan.get("project_title") != title:
         raise PortalPreparationError("Reviewed batch plan required")
     if plan.get("final_submission", False) is not False:
